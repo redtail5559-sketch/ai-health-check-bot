@@ -6,10 +6,10 @@ export async function POST(req) {
     // 入力値
     const heightCm = Number(body?.heightCm);
     const weightKg = Number(body?.weightKg);
-    const age = body?.age ? Number(body.age) : null;   // 任意
-    const sex = body?.sex ?? null;                     // 任意 "male" | "female" | null
+    const age = body?.age ? Number(body.age) : null;
+    const sex = body?.sex ?? null;
 
-    // ★ lifestyle は必ずこのPOST関数の中で受け取る
+    // ★ lifestyle は POST 関数の中で受け取る
     const lifestyle = body?.lifestyle ?? {};
     const {
       drink = "none",        // none/light/medium/heavy
@@ -68,21 +68,13 @@ export async function POST(req) {
     if (bmi < 18.5) tips.push("間食にヨーグルト・チーズ・ナッツを活用");
     tips.push("睡眠は目標7時間：食欲ホルモンが整いやすい");
 
-    // 生活習慣による追加tips
-    if (["medium", "heavy"].includes(drink))
-      tips.push("週2日の休肝日＋甘いお酒は控えめに");
-    if (smoke !== "none")
-      tips.push("禁煙サポート外来の検討：成功率が上がります");
-    if (activity === "lt1")
-      tips.push("毎日10分の早歩きからスタート");
-    else if (activity === "1to3")
-      tips.push("週150分を目標に20分×3〜5回へ");
-    if (sleep === "lt6")
-      tips.push("就寝1時間前のスマホ断ちで睡眠時間を確保");
-    if (diet === "fastfood" || diet === "carbheavy")
-      tips.push("“先サラダ/味噌汁”で血糖上昇をゆるやかに");
+    if (["medium", "heavy"].includes(drink)) tips.push("週2日の休肝日＋甘いお酒は控えめに");
+    if (smoke !== "none") tips.push("禁煙サポート外来の検討：成功率が上がります");
+    if (activity === "lt1") tips.push("毎日10分の早歩きからスタート");
+    else if (activity === "1to3") tips.push("週150分を目標に20分×3〜5回へ");
+    if (sleep === "lt6") tips.push("就寝1時間前のスマホ断ちで睡眠時間を確保");
+    if (diet === "fastfood" || diet === "carbheavy") tips.push("“先サラダ/味噌汁”で血糖上昇をゆるやかに");
 
-    // 任意メモ
     let note = null;
     if (age && age >= 40 && bmi >= 23 && bmi < 25) {
       note = "40歳以上はBMI23でも代謝リスクが上がりやすい報告あり。定期検診を。";
@@ -96,13 +88,7 @@ export async function POST(req) {
           category,
           advice,
           tips,
-          inputs: {
-            heightCm,
-            weightKg,
-            age,
-            sex,
-            lifestyle: { drink, smoke, activity, sleep, diet },
-          },
+          inputs: { heightCm, weightKg, age, sex, lifestyle: { drink, smoke, activity, sleep, diet } },
           note,
         },
       }),
@@ -110,17 +96,13 @@ export async function POST(req) {
     );
   } catch (e) {
     return new Response(
-      JSON.stringify({
-        ok: false,
-        error: "サーバーエラーが発生しました",
-        detail: String(e?.message ?? e),
-      }),
+      JSON.stringify({ ok: false, error: "サーバーエラーが発生しました", detail: String(e?.message ?? e) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
 
-// 動作確認用：GETで仕様を返す
+// GET: 仕様確認用
 export async function GET() {
   return new Response(
     JSON.stringify({
@@ -128,19 +110,7 @@ export async function GET() {
       spec: {
         method: "POST",
         endpoint: "/api/free-advice",
-        bodyExample: {
-          heightCm: 170,
-          weightKg: 65,
-          age: 45,
-          sex: "male",
-          lifestyle: {
-            drink: "none",
-            smoke: "none",
-            activity: "lt1",
-            sleep: "6to7",
-            diet: "japanese",
-          },
-        },
+        bodyExample: { heightCm: 170, weightKg: 65, age: 45, sex: "male" },
       },
     }),
     { status: 200, headers: { "Content-Type": "application/json" } }
