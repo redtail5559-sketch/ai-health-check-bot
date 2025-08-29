@@ -3,11 +3,21 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // 受け取りフォーマット（必要最低限）
+    // 入力値
     const heightCm = Number(body?.heightCm);
     const weightKg = Number(body?.weightKg);
-    const age = body?.age ? Number(body.age) : null;     // 任意
-    const sex = body?.sex ?? null;                       // "male" | "female" | null（任意）
+    const age = body?.age ? Number(body.age) : null;   // 任意
+    const sex = body?.sex ?? null;                     // 任意 "male" | "female" | null
+
+    // ★ lifestyle は必ずこのPOST関数の中で受け取る
+    const lifestyle = body?.lifestyle ?? {};
+    const {
+      drink = "none",        // none/light/medium/heavy
+      smoke = "none",        // none/sometimes/daily
+      activity = "lt1",      // lt1/1to3/3to5/gt5
+      sleep = "6to7",        // lt6/6to7/7to8/gt8
+      diet = "japanese",     // japanese/balanced/carbheavy/fastfood/proteinheavy
+    } = lifestyle;
 
     // バリデーション
     const errors = [];
@@ -16,18 +26,18 @@ export async function POST(req) {
     if (heightCm <= 0) errors.push("heightCm は 0 より大きい必要があります");
     if (weightKg <= 0) errors.push("weightKg は 0 より大きい必要があります");
     if (errors.length) {
-      return new Response(
-        JSON.stringify({ ok: false, errors }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ ok: false, errors }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // BMI 計算
     const h = heightCm / 100;
     const bmiRaw = weightKg / (h * h);
-    const bmi = Math.round(bmiRaw * 10) / 10; // 小数1桁に丸め
+    const bmi = Math.round(bmiRaw * 10) / 10;
 
-    // 分類（日本の基準ベース）
+    // 分類
     let category = "";
     if (bmi < 18.5) category = "低体重（やせ）";
     else if (bmi < 25) category = "普通体重";
@@ -36,7 +46,7 @@ export async function POST(req) {
     else if (bmi < 40) category = "肥満（3度）";
     else category = "肥満（4度）";
 
-    // ワンポイントアドバイス（超要約）
+    // ワンポイント
     const advice = (() => {
       if (bmi < 18.5)
         return "エネルギーとたんぱく質を意識的に。毎食の主食＋主菜（肉・魚・卵・大豆）をしっかり。";
@@ -51,14 +61,28 @@ export async function POST(req) {
       return "専門家のサポートで段階的減量を。無理なく“続く方法”に全振りしましょう。";
     })();
 
-    // 追加ヒント（UIで箇条書き表示しやすいよう配列）
+    // tips（基本＋生活習慣）
     const tips = [];
     if (bmi >= 25) tips.push("砂糖入り飲料→ゼロ飲料・無糖茶に置き換え");
     if (bmi >= 23 && bmi < 25) tips.push("体重を週1で記録：増加の早期発見に");
     if (bmi < 18.5) tips.push("間食にヨーグルト・チーズ・ナッツを活用");
     tips.push("睡眠は目標7時間：食欲ホルモンが整いやすい");
 
-    // 任意メモ（年齢や性別を活かした軽い補足）
+    // 生活習慣による追加tips
+    if (["medium", "heavy"].includes(drink))
+      tips.push("週2日の休肝日＋甘いお酒は控えめに");
+    if (smoke !== "none")
+      tips.push("禁煙サポート外来の検討：成功率が上がります");
+    if (activity === "lt1")
+      tips.push("毎日10分の早歩きからスタート");
+    else if (activity === "1to3")
+      tips.push("週150分を目標に20分×3〜5回へ");
+    if (sleep === "lt6")
+      tips.push("就寝1時間前のスマホ断ちで睡眠時間を確保");
+    if (diet === "fastfood" || diet === "carbheavy")
+      tips.push("“先サラダ/味噌汁”で血糖上昇をゆるやかに");
+
+    // 任意メモ
     let note = null;
     if (age && age >= 40 && bmi >= 23 && bmi < 25) {
       note = "40歳以上はBMI23でも代謝リスクが上がりやすい報告あり。定期検診を。";
@@ -72,21 +96,31 @@ export async function POST(req) {
           category,
           advice,
           tips,
-          inputs: { heightCm, weightKg, age, sex },
-          note
-        }
+          inputs: {
+            heightCm,
+            weightKg,
+            age,
+            sex,
+            lifestyle: { drink, smoke, activity, sleep, diet },
+          },
+          note,
+        },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (e) {
     return new Response(
-      JSON.stringify({ ok: false, error: "サーバーエラーが発生しました", detail: String(e?.message ?? e) }),
+      JSON.stringify({
+        ok: false,
+        error: "サーバーエラーが発生しました",
+        detail: String(e?.message ?? e),
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
 
-// （任意）動作確認用：GETで仕様を返す
+// 動作確認用：GETで仕様を返す
 export async function GET() {
   return new Response(
     JSON.stringify({
@@ -94,18 +128,21 @@ export async function GET() {
       spec: {
         method: "POST",
         endpoint: "/api/free-advice",
-        bodyExample: { heightCm: 170, weightKg: 65, age: 45, sex: "male" },
+        bodyExample: {
+          heightCm: 170,
+          weightKg: 65,
+          age: 45,
+          sex: "male",
+          lifestyle: {
+            drink: "none",
+            smoke: "none",
+            activity: "lt1",
+            sleep: "6to7",
+            diet: "japanese",
+          },
+        },
       },
     }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 }
-const lifestyle = body?.lifestyle ?? {};
-const {
-  drink = "none",        // none/light/medium/heavy
-  smoke = "none",        // none/sometimes/daily
-  activity = "lt1",      // lt1/1to3/3to5/gt5
-  sleep = "6to7",        // lt6/6to7/7to8/gt8
-  diet = "japanese",     // japanese/balanced/carbheavy/fastfood/proteinheavy
-} = lifestyle;
-
