@@ -100,3 +100,12 @@ export async function GET() {
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 }
+const lifestyle = body?.lifestyle ?? {};
+const {
+  drink = "none",        // none/light/medium/heavy
+  smoke = "none",        // none/sometimes/daily
+  activity = "lt1",      // lt1/1to3/3to5/gt5
+  sleep = "6to7",        // lt6/6to7/7to8/gt8
+  diet = "japanese",     // japanese/balanced/carbheavy/fastfood/proteinheavy
+} = lifestyle;
+
