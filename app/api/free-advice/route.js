@@ -9,14 +9,14 @@ export async function POST(req) {
     const age = body?.age ? Number(body.age) : null;
     const sex = body?.sex ?? null;
 
-    // ★ lifestyle は POST 関数の中で受け取る
+    // lifestyle は POST の中で受け取る
     const lifestyle = body?.lifestyle ?? {};
     const {
-      drink = "none",        // none/light/medium/heavy
-      smoke = "none",        // none/sometimes/daily
-      activity = "lt1",      // lt1/1to3/3to5/gt5
-      sleep = "6to7",        // lt6/6to7/7to8/gt8
-      diet = "japanese",     // japanese/balanced/carbheavy/fastfood/proteinheavy
+      drink = "none",
+      smoke = "none",
+      activity = "lt1",
+      sleep = "6to7",
+      diet = "japanese",
     } = lifestyle;
 
     // バリデーション
@@ -27,17 +27,15 @@ export async function POST(req) {
     if (weightKg <= 0) errors.push("weightKg は 0 より大きい必要があります");
     if (errors.length) {
       return new Response(JSON.stringify({ ok: false, errors }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+        status: 400, headers: { "Content-Type": "application/json" }
       });
     }
 
-    // BMI 計算
+    // BMI
     const h = heightCm / 100;
-    const bmiRaw = weightKg / (h * h);
-    const bmi = Math.round(bmiRaw * 10) / 10;
+    const bmi = Math.round((weightKg / (h * h)) * 10) / 10;
 
-    // 分類
+    // 判定
     let category = "";
     if (bmi < 18.5) category = "低体重（やせ）";
     else if (bmi < 25) category = "普通体重";
@@ -48,28 +46,24 @@ export async function POST(req) {
 
     // ワンポイント
     const advice = (() => {
-      if (bmi < 18.5)
-        return "エネルギーとたんぱく質を意識的に。毎食の主食＋主菜（肉・魚・卵・大豆）をしっかり。";
-      if (bmi < 25)
-        return "今のリズムを継続。1日7,000歩＋野菜優先（先サラダ）で体重の安定を。";
-      if (bmi < 30)
-        return "“まず飲み物”を無糖へ置き換え。週150分の早歩きで1〜2kgの減量から。";
-      if (bmi < 35)
-        return "間食・夜食の頻度を半減。たんぱく質多め、主食は拳1つ分を目安に。";
-      if (bmi < 40)
-        return "医療機関や専門家の支援も検討。食事は“腹七分”＋毎日こまめに歩数稼ぎ。";
-      return "専門家のサポートで段階的減量を。無理なく“続く方法”に全振りしましょう。";
+      if (bmi < 18.5) return "エネルギーとたんぱく質を意識的に。毎食の主食＋主菜をしっかり。";
+      if (bmi < 25)  return "今のリズムを継続。1日7,000歩＋先サラダで体重安定。";
+      if (bmi < 30)  return "飲み物を無糖へ置換。週150分の早歩きで1〜2kgの減量から。";
+      if (bmi < 35)  return "間食・夜食を半減。たんぱく質多め、主食は拳1つ分。";
+      if (bmi < 40)  return "支援の活用も検討。腹七分＋こまめに歩数稼ぎ。";
+      return "専門家と段階的減量を。無理なく“続く方法”で。";
     })();
 
-    // tips（基本＋生活習慣）
+    // tips
     const tips = [];
     if (bmi >= 25) tips.push("砂糖入り飲料→ゼロ飲料・無糖茶に置き換え");
     if (bmi >= 23 && bmi < 25) tips.push("体重を週1で記録：増加の早期発見に");
     if (bmi < 18.5) tips.push("間食にヨーグルト・チーズ・ナッツを活用");
     tips.push("睡眠は目標7時間：食欲ホルモンが整いやすい");
 
+    // 生活習慣の追加tips
     if (["medium", "heavy"].includes(drink)) tips.push("週2日の休肝日＋甘いお酒は控えめに");
-    if (smoke !== "none") tips.push("禁煙サポート外来の検討：成功率が上がります");
+    if (smoke !== "none") tips.push("禁煙外来の検討：成功率が上がります");
     if (activity === "lt1") tips.push("毎日10分の早歩きからスタート");
     else if (activity === "1to3") tips.push("週150分を目標に20分×3〜5回へ");
     if (sleep === "lt6") tips.push("就寝1時間前のスマホ断ちで睡眠時間を確保");
@@ -77,42 +71,28 @@ export async function POST(req) {
 
     let note = null;
     if (age && age >= 40 && bmi >= 23 && bmi < 25) {
-      note = "40歳以上はBMI23でも代謝リスクが上がりやすい報告あり。定期検診を。";
+      note = "40歳以上はBMI23でも代謝リスク上昇の報告あり。定期検診を。";
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        data: {
-          bmi,
-          category,
-          advice,
-          tips,
-          inputs: { heightCm, weightKg, age, sex, lifestyle: { drink, smoke, activity, sleep, diet } },
-          note,
-        },
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      ok: true,
+      data: {
+        bmi, category, advice, tips,
+        inputs: { heightCm, weightKg, age, sex, lifestyle: { drink, smoke, activity, sleep, diet } },
+        note
+      }
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (e) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "サーバーエラーが発生しました", detail: String(e?.message ?? e) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      ok: false, error: "サーバーエラーが発生しました", detail: String(e?.message ?? e)
+    }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }
 
-// GET: 仕様確認用
 export async function GET() {
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      spec: {
-        method: "POST",
-        endpoint: "/api/free-advice",
-        bodyExample: { heightCm: 170, weightKg: 65, age: 45, sex: "male" },
-      },
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
+  return new Response(JSON.stringify({
+    ok: true,
+    spec: { method: "POST", endpoint: "/api/free-advice",
+      bodyExample: { heightCm: 170, weightKg: 65, age: 45, sex: "male" } }
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
