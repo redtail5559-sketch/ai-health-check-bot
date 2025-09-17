@@ -1,98 +1,176 @@
 // app/api/free-advice/route.js
+import { NextResponse } from "next/server";
+
+/* ---- 既存ユーティリティ ---- */
+const toNumber = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const round = (n, d = 1) => {
+  const p = 10 ** d;
+  return Math.round(n * p) / p;
+};
+const bmiOf = (hCm, wKg) => round(wKg / Math.pow(hCm / 100, 2), 1);
+const categoryJASSO = (bmi) => {
+  if (bmi < 18.5) return "低体重";
+  if (bmi < 25) return "普通体重";
+  if (bmi < 30) return "肥満（1度）";
+  if (bmi < 35) return "肥満（2度）";
+  if (bmi < 40) return "肥満（3度）";
+  return "肥満（4度）";
+};
+
+/* ---- GET: 仕様確認 ---- */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    spec: {
+      endpoint: "POST /api/free-advice",
+      expects: {
+        heightCm: "number",
+        weightKg: "number",
+        age: "number | null",
+        sex: "string | null",
+        lifestyle: {
+          drink: "string",
+          smoke: "string",
+          activity: "string",
+          sleep: "string",
+          diet: "string",
+        },
+      },
+      returns:
+        "{ ok, data: { bmi:number, category:string, advice:string, tips:string[], note?:string } }",
+    },
+  });
+}
+
+/* ---- POST: 簡易AIアドバイス（無料版） ---- */
 export async function POST(req) {
   try {
     const body = await req.json();
+    const heightCm = toNumber(body?.heightCm);
+    const weightKg = toNumber(body?.weightKg);
+    if (!heightCm || !weightKg) {
+      return NextResponse.json(
+        { ok: false, error: "heightCm と weightKg は必須です。" },
+        { status: 400 }
+      );
+    }
 
-    // 入力値
-    const heightCm = Number(body?.heightCm);
-    const weightKg = Number(body?.weightKg);
-    const age = body?.age ? Number(body.age) : null;
+    const age = toNumber(body?.age);
     const sex = body?.sex ?? null;
-
-    // lifestyle は POST の中で受け取る
     const lifestyle = body?.lifestyle ?? {};
-    const {
-      drink = "none",
-      smoke = "none",
-      activity = "lt1",
-      sleep = "6to7",
-      diet = "japanese",
-    } = lifestyle;
 
-    // バリデーション
-    const errors = [];
-    if (!Number.isFinite(heightCm)) errors.push("heightCm は数値で必須です（cm）");
-    if (!Number.isFinite(weightKg)) errors.push("weightKg は数値で必須です（kg）");
-    if (heightCm <= 0) errors.push("heightCm は 0 より大きい必要があります");
-    if (weightKg <= 0) errors.push("weightKg は 0 より大きい必要があります");
-    if (errors.length) {
-      return new Response(JSON.stringify({ ok: false, errors }), {
-        status: 400, headers: { "Content-Type": "application/json" }
-      });
+    const bmi = bmiOf(heightCm, weightKg);
+    const category = categoryJASSO(bmi);
+
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    // --- APIキーが無い時はフォールバック（従来の簡易ルール） ---
+    if (!apiKey) {
+      const advice =
+        category === "低体重"
+          ? "まずは3食きちんと。間食で乳製品やナッツを少量プラス。"
+          : category === "普通体重"
+          ? "今の調子をキープ。甘い飲料は“週に数回まで”を意識。"
+          : "まずは飲料を無糖に。早歩き15分から始めよう。";
+      const tips = [
+        "水かお茶を基本にする",
+        "エレベーターは階段に置き換え",
+        "就寝2時間前は食べない",
+      ];
+      return NextResponse.json({ ok: true, data: { bmi, category, advice, tips } });
     }
 
-    // BMI
-    const h = heightCm / 100;
-    const bmi = Math.round((weightKg / (h * h)) * 10) / 10;
+    // --- ここからAI生成（短く・無料枠想定で低コスト） ---
+    const system = `
+あなたは日本語の健康アドバイスを短く作るアシスタントです。
+医療診断は行わず、一般的で安全な提案のみを簡潔に出してください。
+出力は必ず JSON のみ。
+`.trim();
 
-    // 判定
-    let category = "";
-    if (bmi < 18.5) category = "低体重（やせ）";
-    else if (bmi < 25) category = "普通体重";
-    else if (bmi < 30) category = "肥満（1度）";
-    else if (bmi < 35) category = "肥満（2度）";
-    else if (bmi < 40) category = "肥満（3度）";
-    else category = "肥満（4度）";
+    const user = `
+# ユーザー
+- 身長: ${heightCm}cm
+- 体重: ${weightKg}kg
+- BMI: ${bmi}（${category}）
+- 年齢: ${age ?? "不明"}
+- 性別: ${sex ?? "不明"}
 
-    // ワンポイント
-    const advice = (() => {
-      if (bmi < 18.5) return "エネルギーとたんぱく質を意識的に。毎食の主食＋主菜をしっかり。";
-      if (bmi < 25)  return "今のリズムを継続。1日7,000歩＋先サラダで体重安定。";
-      if (bmi < 30)  return "飲み物を無糖へ置換。週150分の早歩きで1〜2kgの減量から。";
-      if (bmi < 35)  return "間食・夜食を半減。たんぱく質多め、主食は拳1つ分。";
-      if (bmi < 40)  return "支援の活用も検討。腹七分＋こまめに歩数稼ぎ。";
-      return "専門家と段階的減量を。無理なく“続く方法”で。";
-    })();
+# ライフスタイル（任意・短評でOK）
+- 飲酒: ${lifestyle?.drink ?? "-"}
+- 喫煙: ${lifestyle?.smoke ?? "-"}
+- 運動: ${lifestyle?.activity ?? "-"}
+- 睡眠: ${lifestyle?.sleep ?? "-"}
+- 食事: ${lifestyle?.diet ?? "-"}
 
-    // tips
-    const tips = [];
-    if (bmi >= 25) tips.push("砂糖入り飲料→ゼロ飲料・無糖茶に置き換え");
-    if (bmi >= 23 && bmi < 25) tips.push("体重を週1で記録：増加の早期発見に");
-    if (bmi < 18.5) tips.push("間食にヨーグルト・チーズ・ナッツを活用");
-    tips.push("睡眠は目標7時間：食欲ホルモンが整いやすい");
+# 生成要件
+- 「無料版」向けの**簡易アドバイス**を作る。
+- ライフスタイルに触れた一言を含める（例：飲酒が多い→“まずは本数を減らす”等）。
+- 文量: adviceは全角90〜140文字。tipsは短文3つ。noteは1行まで（任意）。
+- 口調はやさしく実行可能な内容に限定。
 
-    // 生活習慣の追加tips
-    if (["medium", "heavy"].includes(drink)) tips.push("週2日の休肝日＋甘いお酒は控えめに");
-    if (smoke !== "none") tips.push("禁煙外来の検討：成功率が上がります");
-    if (activity === "lt1") tips.push("毎日10分の早歩きからスタート");
-    else if (activity === "1to3") tips.push("週150分を目標に20分×3〜5回へ");
-    if (sleep === "lt6") tips.push("就寝1時間前のスマホ断ちで睡眠時間を確保");
-    if (diet === "fastfood" || diet === "carbheavy") tips.push("“先サラダ/味噌汁”で血糖上昇をゆるやかに");
+# 出力JSONの形
+{
+  "advice": "string（90-140字、1段落）",
+  "tips": ["string","string","string"],
+  "note": "string（任意・1行）"
+}
+`.trim();
 
-    let note = null;
-    if (age && age >= 40 && bmi >= 23 && bmi < 25) {
-      note = "40歳以上はBMI23でも代謝リスク上昇の報告あり。定期検診を。";
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",              // 低コスト・十分な品質
+        temperature: 0.6,
+        max_tokens: 350,                   // 出力しすぎ防止（=コスト抑制）
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+
+    if (!resp.ok) {
+      const e = await resp.text();
+      return NextResponse.json(
+        { ok: false, error: `OpenAI API error: ${e}` },
+        { status: 502 }
+      );
     }
 
-    return new Response(JSON.stringify({
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content ?? "{}";
+
+    let ai;
+    try {
+      ai = JSON.parse(content);
+    } catch {
+      ai = { advice: content, tips: [] };
+    }
+
+    // 既存仕様に合わせて返却
+    return NextResponse.json({
       ok: true,
       data: {
-        bmi, category, advice, tips,
-        inputs: { heightCm, weightKg, age, sex, lifestyle: { drink, smoke, activity, sleep, diet } },
-        note
-      }
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({
-      ok: false, error: "サーバーエラーが発生しました", detail: String(e?.message ?? e)
-    }), { status: 500, headers: { "Content-Type": "application/json" } });
+        bmi,
+        category,
+        advice: ai.advice,
+        tips: Array.isArray(ai.tips) ? ai.tips : [],
+        note: ai.note ?? undefined,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { ok: false, error: "サーバーエラーが発生しました。" },
+      { status: 500 }
+    );
   }
-}
-
-export async function GET() {
-  return new Response(JSON.stringify({
-    ok: true,
-    spec: { method: "POST", endpoint: "/api/free-advice",
-      bodyExample: { heightCm: 170, weightKg: 65, age: 45, sex: "male" } }
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
