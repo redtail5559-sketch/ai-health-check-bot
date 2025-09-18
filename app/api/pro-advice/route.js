@@ -1,4 +1,5 @@
 // app/api/pro-advice/route.js
+export const runtime = "nodejs"; 
 import { NextResponse } from "next/server";
 
 /* ---------- ユーティリティ ---------- */

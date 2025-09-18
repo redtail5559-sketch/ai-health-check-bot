@@ -1,27 +1,25 @@
-// app/api/checkout/route.js
+// app/api/checkout-session/route.js
 export const runtime = "nodejs";
 import Stripe from "stripe";
-import { NextResponse } from "next/server";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {
   try {
-    const { email } = await req.json().catch(() => ({})); // ← フロントから受け取る
-    const origin =
-      process.env.NEXT_PUBLIC_APP_ORIGIN || "https://ai-health-check-bot.vercel.app";
+    const { sessionId } = await req.json();
+    if (!sessionId) {
+      return new Response("Missing sessionId", { status: 400 });
+    }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
-      customer_email: email || undefined, // ← ここがポイント（自動表示）
-      success_url: `${origin}/pro/result?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/pro/cancel`,
-      locale: "ja",
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // 必要な情報だけ返す
+    return Response.json({
+      email: session.customer_email || "",
+      payment_status: session.payment_status,
     });
-
-    return NextResponse.json({ id: session.id, url: session.url });
-  } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (e) {
+    console.error(e);
+    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 }
