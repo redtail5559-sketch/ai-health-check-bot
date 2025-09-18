@@ -1,4 +1,7 @@
+export const runtime = 'nodejs';
 import Stripe from "stripe";
+
+// A 推奨：空文字を渡して型/ビルド上の未定義を避ける
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {

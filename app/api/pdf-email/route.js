@@ -1,6 +1,22 @@
 // app/api/pdf-email/route.js
-export const runtime = "edge";
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
+
+import { Resend } from "resend";
+import Stripe from "stripe";
+
+
+// Resend 初期化
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Stripe 初期化
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+  apiVersion: "2024-06-20",
+});
+
+
+
 
 // StripeのCheckout Sessionを取得（Edge対応：RESTで叩く）
 async function getCheckoutSession(sessionId) {
