@@ -1,48 +1,30 @@
-// app/pro/page.jsx
+// app/pro/success/page.jsx
 "use client";
 
-export default function ProPage() {
-  // メールを入力してCheckout開始
-  const startCheckout = async () => {
-    const email = document.getElementById("email").value;
-    if (!email) {
-      alert("メールアドレスを入力してください");
-      return;
-    }
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-    // 入力メールを sessionStorage に保存（後で result ページでも使える）
-    sessionStorage.setItem("buyerEmail", email);
+export default function Success() {
+  const router = useRouter();
+  const sp = useSearchParams();
 
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }), // ← 入力メールを送信
-    });
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url; // Stripe Checkoutへ遷移
+  useEffect(() => {
+    // Stripe の success_url から ?session_id=... が渡ってくる想定
+    const id = sp.get("session_id") || sp.get("sessionId");
+    if (id) {
+      // 後続ページで使えるように保存
+      sessionStorage.setItem("sessionId", id);
+      sessionStorage.setItem("stripeSessionId", id);
+      // 結果ページへリダイレクト
+      router.replace(`/pro/result?session_id=${id}`);
     } else {
-      alert("Checkout作成失敗: " + (data.error || "unknown"));
+      router.replace("/pro/result");
     }
-  };
+  }, [router, sp]);
 
   return (
-    <main className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">AI健康診断（有料版）</h1>
-      <p className="mb-2">メールアドレスを入力してお進みください。</p>
-      <input
-        id="email"
-        type="email"
-        placeholder="you@example.com"
-        className="border rounded px-3 py-2 w-full mb-4"
-      />
-      <button
-        onClick={startCheckout}
-        className="px-6 py-3 bg-pink-500 text-white rounded-full shadow hover:bg-pink-600"
-      >
-        有料プランに進む
-      </button>
+    <main className="p-6">
+      決済が完了しました。レポートへ移動します…
     </main>
   );
 }
