@@ -1,4 +1,3 @@
-// app/pro/success/page.jsx
 "use client";
 export const dynamic = 'force-dynamic';
 import { useEffect } from "react";

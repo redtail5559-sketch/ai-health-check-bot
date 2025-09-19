@@ -1,4 +1,3 @@
-// app/pro/result/page.jsx
 "use client";
 export const dynamic = 'force-dynamic';
 

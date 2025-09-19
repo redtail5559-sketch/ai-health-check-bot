@@ -1,4 +1,4 @@
-// app/pro/cancel/page.jsx
+'use client';
 export default function Cancel() {
   return (
     <main className="p-6">
