@@ -1,12 +1,12 @@
 // app/pro/success/page.jsx
 "use client";
-
+export const dynamic = 'force-dynamic';
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Success() {
   const router = useRouter();
-  const sp = useSearchParams();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Stripe の success_url から ?session_id=... が渡ってくる想定

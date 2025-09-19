@@ -1,14 +1,15 @@
 // app/pro/result/page.jsx
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 "use client";
+export const dynamic = 'force-dynamic';
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from 'react';
+import { useEffect, useSearchParams } from 'next/navigation';
 
-export default function ProResultPage() {
-  const sp = useSearchParams();
+export default function Success() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  …
+}
 
   // Stripe の success_url に session_id が付くケースと、独自で sessionId を付けたケースの両対応
   const urlSessionId = sp.get("session_id") || sp.get("sessionId") || "";
