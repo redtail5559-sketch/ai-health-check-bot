@@ -22,8 +22,9 @@ export async function POST(req) {
         },
       ],
       // ★ ここが今回の要点
-      success_url: `${appOrigin}/pro/result?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${appOrigin}/pro/success?sid={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/pro/cancel`,
+
       // 任意
       billing_address_collection: "auto",
       locale: "ja",

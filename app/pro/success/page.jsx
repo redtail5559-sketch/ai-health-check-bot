@@ -2,25 +2,8 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-"use client";
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import SuccessClient from "./SuccessClient";
 
-export default function Success() {
-  const router = useRouter();
-  const sp = useSearchParams();
-
-  useEffect(() => {
-    const sid = sp.get("sid") || "";
-    try { if (sid) sessionStorage.setItem("sessionId", sid); } catch {}
-    if (sid) {
-      router.replace(`/pro/result?sessionId=${encodeURIComponent(sid)}`);
-    } else {
-      // sidが無くても復旧できるよう保険
-      const saved = typeof window !== "undefined" ? sessionStorage.getItem("sessionId") : "";
-      router.replace(`/pro/result?sessionId=${encodeURIComponent(saved || "")}`);
-    }
-  }, [router, sp]);
-
-  return <main className="p-6">お支払い完了。結果ページに移動します…</main>;
+export default function Page() {
+  return <SuccessClient />;
 }
