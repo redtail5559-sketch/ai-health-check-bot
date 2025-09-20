@@ -9,11 +9,14 @@ export default function ProFormClient() {
     heightCm: "", weightKg: "", age: "", sex: "",
     drink: "", smoke: "", activity: "", sleep: "", diet: "", email: "",
   });
-
   const onChange = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!form.heightCm || !form.weightKg || !form.email) {
+      alert("身長・体重・メールは必須です。");
+      return;
+    }
     try {
       setLoading(true);
       sessionStorage.setItem("proForm", JSON.stringify(form));
@@ -23,12 +26,16 @@ export default function ProFormClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error("failed to create session");
+
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || "failed to create checkout session");
+      }
       const { url } = await res.json();
       window.location.href = url;
     } catch (err) {
       console.error(err);
-      alert("決済画面を開けませんでした。時間をおいてお試しください。");
+      alert("決済画面を開けませんでした。詳細: " + (err.message || "unknown"));
     } finally {
       setLoading(false);
     }
@@ -41,20 +48,51 @@ export default function ProFormClient() {
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <input placeholder="身長(cm)" value={form.heightCm} onChange={onChange("heightCm")} className="border p-3 rounded" />
-          <input placeholder="体重(kg)" value={form.weightKg} onChange={onChange("weightKg")} className="border p-3 rounded" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <input placeholder="年齢" value={form.age} onChange={onChange("age")} className="border p-3 rounded" />
-          <input placeholder="性別（任意）" value={form.sex} onChange={onChange("sex")} className="border p-3 rounded" />
+          <input type="number" min="50" max="250" placeholder="身長(cm)*" value={form.heightCm} onChange={onChange("heightCm")} className="border p-3 rounded" required />
+          <input type="number" min="20" max="200" placeholder="体重(kg)*" value={form.weightKg} onChange={onChange("weightKg")} className="border p-3 rounded" required />
         </div>
 
-        <input placeholder="飲酒例: 週2回/350ml×2" value={form.drink} onChange={onChange("drink")} className="border p-3 rounded" />
-        <input placeholder="喫煙例: なし/1日10本" value={form.smoke} onChange={onChange("smoke")} className="border p-3 rounded" />
-        <input placeholder="運動例: 週2回 30分早歩き" value={form.activity} onChange={onChange("activity")} className="border p-3 rounded" />
-        <input placeholder="睡眠例: 6時間" value={form.sleep} onChange={onChange("sleep")} className="border p-3 rounded" />
-        <input placeholder="食事例: 夜食あり/野菜少なめ" value={form.diet} onChange={onChange("diet")} className="border p-3 rounded" />
-        <input type="email" placeholder="購入メール（レポート送付先）" value={form.email} onChange={onChange("email")} className="border p-3 rounded" required />
+        <div className="grid grid-cols-2 gap-3">
+          <input type="number" min="1" max="120" placeholder="年齢（任意）" value={form.age} onChange={onChange("age")} className="border p-3 rounded" />
+          <select value={form.sex} onChange={onChange("sex")} className="border p-3 rounded">
+            <option value="">性別（任意）</option>
+            <option value="男性">男性</option>
+            <option value="女性">女性</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+
+        <select value={form.activity} onChange={onChange("activity")} className="border p-3 rounded">
+          <option value="">運動量（任意）</option>
+          <option value="ほぼなし">ほぼなし</option>
+          <option value="週2-3回">週2-3回</option>
+          <option value="週4回以上">週4回以上</option>
+        </select>
+
+        <select value={form.sleep} onChange={onChange("sleep")} className="border p-3 rounded">
+          <option value="">睡眠時間（任意）</option>
+          <option value="〜5時間">〜5時間</option>
+          <option value="6-7時間">6–7時間</option>
+          <option value="8時間以上">8時間以上</option>
+        </select>
+
+        <select value={form.drink} onChange={onChange("drink")} className="border p-3 rounded">
+          <option value="">飲酒（任意）</option>
+          <option value="なし">なし</option>
+          <option value="週1-2回">週1–2回</option>
+          <option value="週3回以上">週3回以上</option>
+        </select>
+
+        <select value={form.smoke} onChange={onChange("smoke")} className="border p-3 rounded">
+          <option value="">喫煙（任意）</option>
+          <option value="なし">なし</option>
+          <option value="ときどき">ときどき</option>
+          <option value="毎日">毎日</option>
+        </select>
+
+        <input placeholder="食事の傾向（任意）" value={form.diet} onChange={onChange("diet")} className="border p-3 rounded" />
+
+        <input type="email" placeholder="購入メール（送付先）*" value={form.email} onChange={onChange("email")} className="border p-3 rounded" required />
 
         <button disabled={loading} className="rounded bg-black text-white px-5 py-3 disabled:opacity-60">
           {loading ? "Checkoutに遷移中…" : "診断に進む（決済へ）"}
