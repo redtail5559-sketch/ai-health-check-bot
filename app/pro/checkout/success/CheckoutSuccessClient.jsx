@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SuccessClient() {
+export default function CheckoutSuccessClient() {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -11,9 +11,8 @@ export default function SuccessClient() {
     const sid = sp.get("sid") || sp.get("session_id") || "";
     try { if (sid) sessionStorage.setItem("sessionId", sid); } catch {}
     const saved = typeof window !== "undefined" ? sessionStorage.getItem("sessionId") : "";
-    const sessionId = sid || saved || "";
-    router.replace(`/pro/result?sessionId=${encodeURIComponent(sessionId)}`);
+    router.replace(`/pro/success?sid=${encodeURIComponent(sid || saved || "")}`);
   }, [router, sp]);
 
-  return null; // すぐリダイレクトするなら何も描画しなくてOK
+  return null;
 }
