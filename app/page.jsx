@@ -39,7 +39,7 @@ export default function HomePage() {
         {/* 右側イラスト */}
         <div className="flex justify-center">
           <Image
-            src="/hero-ai.png"
+            src="/illustrations/hero-ai.png"
             alt="AI Health Bot"
             width={400}
             height={400}
@@ -56,7 +56,7 @@ export default function HomePage() {
             {/* Step 1 */}
             <div className="p-6 border rounded-lg bg-gray-50">
               <Image
-                src="/step-input.png"
+                src="/illustrations/step-input.png"
                 alt="Step 1 入力"
                 width={120}
                 height={120}
@@ -70,7 +70,7 @@ export default function HomePage() {
             {/* Step 2 */}
             <div className="p-6 border rounded-lg bg-gray-50">
               <Image
-                src="/step-ai.png"
+                src="/illustrations/step-ai.png"
                 alt="Step 2 AI診断"
                 width={120}
                 height={120}
@@ -84,7 +84,7 @@ export default function HomePage() {
             {/* Step 3 */}
             <div className="p-6 border rounded-lg bg-gray-50">
               <Image
-                src="/step-result.png"
+                src="/illustrations/step-result.png"
                 alt="Step 3 結果表示"
                 width={120}
                 height={120}
@@ -142,7 +142,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-2xl font-bold mb-6">こんなレポートが届きます</h2>
           <Image
-            src="/pro-sample.png"
+            src="/illustrations/pro-sample.png"
             alt="サンプルレポート"
             width={400}
             height={400}
