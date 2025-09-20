@@ -2,8 +2,8 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import ProClient from "./ProClient";
+import ProFormClient from "./ProFormClient";   // ← ここがポイント（ProClient ではなく ProFormClient）
 
 export default function Page() {
-  return <ProClient />;
+  return <ProFormClient />;
 }
