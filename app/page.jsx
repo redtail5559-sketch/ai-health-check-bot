@@ -137,26 +137,67 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* サンプルレポート */}
-      <section className="bg-gray-50 py-16">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-2xl font-bold mb-6">こんなレポートが届きます</h2>
+    {/* こんなレポートが届きます */}
+<section className="py-16 bg-indigo-50/40">
+  <div className="max-w-6xl mx-auto px-6">
+    <div className="grid md:grid-cols-2 gap-10 items-center">
+      {/* 左：画像（白フチ＋影） */}
+      <div className="flex justify-center">
+        <div className="rounded-xl bg-white p-3 shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
           <Image
             src="/illustrations/pro-sample.png"
             alt="サンプルレポート"
-            width={400}
-            height={400}
-            className="mx-auto rounded-lg shadow"
+            width={380}
+            height={380}
+            className="rounded-lg"
+            priority
           />
-          <p className="mt-4 text-gray-600">
-            ・食事は量・メニューまで具体的に（例: 朝はオートミール＋ヨーグルト）
-            <br />
-            ・運動は曜日ごとのメニュー提案（有酸素150分/週＋筋トレ2日）
-            <br />
-            ・メールにPDFを添付。あとから見返して続けやすい
-          </p>
         </div>
-      </section>
+      </div>
+
+      {/* 右：テキスト＋CTA */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">こんなレポートが届きます</h2>
+        <ul className="space-y-3 text-gray-700 leading-relaxed list-disc pl-5">
+          <li>
+            食事は量・メニューまで具体的に（例：朝はオートミール＋ヨーグルト）
+          </li>
+          <li>
+            運動は曜日ごとのメニュー提案（有酸素150分/週＋筋トレ2日）
+          </li>
+          <li>
+            メールにPDFを添付。あとから見返して続けやすい
+          </li>
+        </ul>
+
+        <Link
+          href="/pro"
+          className="inline-flex items-center mt-6 rounded-full bg-pink-500 px-6 py-3 text-white font-semibold shadow hover:bg-pink-600"
+        >
+          500円で詳細プランを作成 →
+        </Link>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* フッター */}
+<footer className="border-t mt-8">
+  <div className="max-w-6xl mx-auto px-6 py-8 text-sm text-gray-600">
+    <p className="text-xs text-gray-500">
+      ※ 本サービスは一般的な健康アドバイスの提供であり、医療行為ではありません。
+    </p>
+
+    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+      <Link href="/terms" className="hover:underline">利用規約</Link>
+      <Link href="/privacy" className="hover:underline">プライバシーポリシー</Link>
+      <Link href="/disclaimer" className="hover:underline">免責ページ</Link>
+    </div>
+
+    <p className="mt-4 text-xs text-gray-400">© 2025 AI健康診断Bot</p>
+  </div>
+</footer>
+
     </main>
   );
 }
