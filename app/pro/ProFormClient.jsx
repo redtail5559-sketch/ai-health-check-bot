@@ -90,8 +90,18 @@ export default function ProFormClient() {
           <option value="毎日">毎日</option>
         </select>
 
-        <input placeholder="食事の傾向（任意）" value={form.diet} onChange={onChange("diet")} className="border p-3 rounded" />
-
+       // app/pro/ProFormClient.jsx のフォーム内 該当箇所だけ差し替え
+       <select value={form.diet} onChange={onChange("diet")} className="border p-3 rounded">
+       <option value="">食事の傾向（任意）</option>
+       <option value="バランス型">バランス型</option>
+       <option value="炭水化物多め">炭水化物多め</option>
+       <option value="たんぱく質意識">たんぱく質意識</option>
+       <option value="外食・コンビニ多め">外食・コンビニ多め</option>
+       <option value="野菜少なめ">野菜少なめ</option>
+       <option value="低糖質・糖質制限">低糖質・糖質制限</option>
+       <option value="間食多め">間食多め</option>
+</select>
+ 
         <input type="email" placeholder="購入メール（送付先）*" value={form.email} onChange={onChange("email")} className="border p-3 rounded" required />
 
         <button disabled={loading} className="rounded bg-black text-white px-5 py-3 disabled:opacity-60">
