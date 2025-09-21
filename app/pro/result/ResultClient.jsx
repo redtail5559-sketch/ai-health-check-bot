@@ -72,7 +72,7 @@ export default function ResultClient() {
   </div>
 </section>
  
- <button
+<button
   onClick={async () => {
     try {
       const r = await fetch("/api/pdf-email", {
