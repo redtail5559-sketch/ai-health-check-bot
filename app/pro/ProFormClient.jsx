@@ -27,18 +27,18 @@ export default function ProFormClient() {
       // 復旧用に保存
       sessionStorage.setItem("proForm", JSON.stringify(form));
 
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+     const res = await fetch("/api/checkout-session", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(form),
+});
+if (!res.ok) {
+  const t = await res.text();
+  throw new Error(t || "failed to create checkout session");
+}
+const { url } = await res.json();
+window.location.href = url;
 
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || "failed to create checkout session");
-      }
-      const { url } = await res.json();
-      window.location.href = url;
     } catch (err) {
       console.error(err);
       alert("決済画面を開けませんでした。詳細: " + (err.message || "unknown"));

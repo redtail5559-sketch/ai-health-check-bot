@@ -1,4 +1,4 @@
-// app/api/create-checkout-session/route.js
+// app/api/checkout-session/route.js
 export const runtime = "nodejs";
 
 import Stripe from "stripe";
@@ -33,7 +33,7 @@ export async function POST(req) {
     }
     // =======================================
 
-    // success_url / cancel_url 用の origin を安全に決定
+    // success_url / cancel_url の origin を安全に決定（env 未設定時の保険あり）
     const h = req.headers;
     const originHeader = h.get("origin");
     const referer = h.get("referer");
@@ -44,7 +44,7 @@ export async function POST(req) {
       "https://ai-health-check-bot.vercel.app";
     const origin = new URL(base).origin;
 
-    // ★JPYはゼロ小数通貨：¥500 ⇒ unit_amount: 500
+    // ★JPYはゼロ小数：¥500 → unit_amount: 500
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -60,8 +60,6 @@ export async function POST(req) {
       ],
       success_url: `${origin}/pro/success?sid={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pro/cancel`,
-
-      // 後続の結果生成やWebhookで参照するため保存
       client_reference_id: body.email || undefined,
       metadata: {
         heightCm: String(body.heightCm ?? ""),
@@ -79,8 +77,7 @@ export async function POST(req) {
 
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (e) {
-    console.error("[create-checkout-session] error:", e);
-    // フロント側の alert にそのまま出るので原因特定しやすい
+    console.error("[checkout-session] error:", e);
     return new NextResponse(String(e?.message || e), { status: 400 });
   }
 }
