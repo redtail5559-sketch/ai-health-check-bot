@@ -1,6 +1,6 @@
 // app/api/pro-result/route.js
 export const runtime = "nodejs";
-
+export const dynamic = "force-dynamic";
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
