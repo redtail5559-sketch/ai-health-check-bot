@@ -30,7 +30,7 @@ export default function ResultClient() {
 
   return (
     <main className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">有料レポート</h1>
+      <h1 className="text-2xl font-bold">AI健康診断bot　診断レポート</h1>
 
       <section className="border rounded-lg p-4 bg-white">
         <h2 className="font-semibold mb-2">プロフィール</h2>
