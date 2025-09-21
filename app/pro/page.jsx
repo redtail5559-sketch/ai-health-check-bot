@@ -1,8 +1,7 @@
 // app/pro/page.jsx
-export const dynamic = "force-dynamic";   // ← プリレンダーを避ける保険（任意）
-"use client";                              // ← ProClientがClientなら、ここに付けるのもOK
+"use client";
 
-import ProFormClient from "./ProFormClient"; // 直接 ProFormClient を使う方が確実
+import ProFormClient from "./ProFormClient";
 
 export default function ProPage() {
   return (
