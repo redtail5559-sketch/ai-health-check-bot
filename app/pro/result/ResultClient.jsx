@@ -72,52 +72,31 @@ export default function ResultClient() {
   </div>
 </section>
  
+ <button
+  onClick={async () => {
+    try {
+      const r = await fetch("/api/pdf-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: d.sessionId,
+          email: d.email,   // 宛先
+          report: d,        // レポート本体（API側で stringify します）
+        }),
+      });
 
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || "送信エラー");
+      alert("PDF作成＆メール送信を開始しました。数分お待ちください。");
+    } catch (e) {
+      alert(`エラー: ${e.message}`);
+    }
+  }}
+  className="rounded bg-black text-white px-5 py-3"
+>
+  PDFをメールで送る
+</button>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      <button
-        onClick={async () => {
-          await fetch("/api/pdf-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId: d.sessionId, report: JSON.stringify(d) }),
-          });
-          alert("PDF作成＆メール送信を開始しました。数分お待ちください。");
-        }}
-        className="rounded bg-black text-white px-5 py-3"
-      >
-        PDFをメールで送る
-      </button>
     </main>
   );
 }
