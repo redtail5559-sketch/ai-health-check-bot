@@ -1,7 +1,3 @@
-// app/pro/success/page.jsx
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
 "use client";
 
 import { useEffect } from "react";
@@ -13,10 +9,11 @@ export default function Success() {
 
   useEffect(() => {
     const sid = sp.get("sid") || "";
-    // sidを保存（復旧用）
+    // 復旧用に保存
     try {
       if (sid) sessionStorage.setItem("sessionId", sid);
     } catch {}
+
     const sessionId =
       sid || (typeof window !== "undefined" ? sessionStorage.getItem("sessionId") || "" : "");
 

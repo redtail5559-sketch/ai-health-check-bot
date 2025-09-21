@@ -1,4 +1,3 @@
-// app/pro/result/ResultClient.jsx
 "use client";
 
 import { useEffect, useState } from "react";
