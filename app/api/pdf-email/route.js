@@ -1,83 +1,101 @@
 // app/api/pdf-email/route.js
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-/**
- * Stripe Checkout Session を REST で取得（SDKをトップレベル初期化しないため）
- * Edgeでも動かせる形だが、このファイルは nodejs ランタイムに固定している
- */
-async function getCheckoutSession(sessionId) {
-  const sk = process.env.STRIPE_SECRET_KEY;
-  if (!sk) throw new Error("STRIPE_SECRET_KEY not set");
-  const url = `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=customer_details`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${sk}` } });
-  if (!resp.ok) throw new Error(`Stripe error: ${await resp.text()}`);
-  return await resp.json();
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function buildPdfBuffer(report) {
+  const pdfDoc = await PDFDocument.create();
+  let page = pdfDoc.addPage([595.28, 841.89]);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const draw = (t, x, y, size = 12, bold = false) =>
+    page.drawText(t, { x, y, size, font: bold ? fontB : font, color: rgb(0.15, 0.15, 0.15) });
+
+  let y = 800;
+  draw("AI 健康診断レポート", 50, y, 20, true); y -= 30;
+  draw(`作成日時: ${new Date().toLocaleString("ja-JP")}`, 50, y); y -= 20;
+
+  y -= 10; draw("■ プロフィール", 50, y, 14, true); y -= 18;
+  const p = report.profile || {};
+  [
+    `身長: ${p.heightCm} cm  /  体重: ${p.weightKg} kg  /  BMI: ${report.bmi ?? "-"}`,
+    `年齢: ${p.age}  /  性別: ${p.sex}`,
+    `運動量: ${p.activity}  /  睡眠: ${p.sleep}`,
+    `飲酒: ${p.drink}  /  喫煙: ${p.smoke}`,
+    `食事傾向: ${p.diet}`,
+  ].forEach(t => { draw(t, 60, y); y -= 16; });
+
+  y -= 8; draw("■ 総括", 50, y, 14, true); y -= 18;
+  draw(report.overview || "", 60, y); y -= 28;
+
+  y -= 8; draw("■ 今週の目標", 50, y, 14, true); y -= 18;
+  (report.goals || []).forEach(g => { draw(`・${g}`, 60, y); y -= 16; });
+
+  y -= 8; draw("■ 1週間の食事・運動プラン", 50, y, 14, true); y -= 18;
+  (report.weekPlan || []).forEach(d => {
+    draw(`【${d.day}】`, 60, y, 12, true); y -= 16;
+    draw(`朝: ${d.meals?.breakfast}`, 72, y); y -= 14;
+    draw(`昼: ${d.meals?.lunch}`, 72, y); y -= 14;
+    draw(`夜: ${d.meals?.dinner}`, 72, y); y -= 14;
+    draw(`間食: ${d.meals?.snack}`, 72, y); y -= 14;
+    draw(`運動: ${d.workout?.name} ${d.workout?.minutes}分（${d.workout?.intensity}）`, 72, y); y -= 14;
+    draw(`Tips: ${d.workout?.tips}`, 72, y); y -= 18;
+    if (y < 120) { page = pdfDoc.addPage([595.28, 841.89]); y = 800; }
+  });
+
+  return Buffer.from(await pdfDoc.save());
 }
 
 export async function POST(req) {
   try {
-    const { sessionId, html } = await req.json();
+    const body = await req.json();
+    const report = typeof body.report === "string" ? JSON.parse(body.report) : body.report;
+    const to = report?.email || body?.to;
+    if (!to) return NextResponse.json({ ok: false, error: "missing recipient email" }, { status: 400 });
 
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
-    }
-    if (!html) {
-      return NextResponse.json({ error: "html is required" }, { status: 400 });
-    }
+    const pdfBuffer = await buildPdfBuffer(report);
+    const from = process.env.MAIL_FROM; // 例: no-reply@yourdomain.com
 
-    // 1) Stripeで支払い検証 & 購入者メールを取得
-    const session = await getCheckoutSession(sessionId);
-    if (session.payment_status !== "paid") {
-      return NextResponse.json({ error: "Payment not completed" }, { status: 403 });
-    }
-    const to = session.customer_details?.email || session.customer_email;
-    if (!to) {
-      return NextResponse.json({ error: "Customer email not found" }, { status: 500 });
+    if (!process.env.RESEND_API_KEY || !from) {
+      throw new Error("RESEND_API_KEY/MAIL_FROM is not set");
     }
 
-    // 2) Resend クライアントを "ハンドラ内" で初期化（トップレベル禁止）
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY || "");
-    const from = process.env.RESEND_FROM; // 例: "AI健康診断 <no-reply@ai-digital-lab.com>"
-
-    if (!process.env.RESEND_API_KEY) {
-      return NextResponse.json({ error: "RESEND_API_KEY not set" }, { status: 500 });
-    }
-    if (!from) {
-      return NextResponse.json({ error: "RESEND_FROM not set" }, { status: 500 });
-    }
-
-    // 3) （例）/public の画像を API 内でだけ読む → Base64 にして埋め込み等に使える
-    //    ※使わないならこのブロックは削除してOK
-    let logoBase64 = "";
-    try {
-      const fs = await import("fs/promises");
-      const path = (await import("path")).default;
-      const logoPath = path.join(process.cwd(), "public", "illustrations", "ai-robot.png");
-      const buf = await fs.readFile(logoPath);
-      logoBase64 = `data:image/png;base64,${buf.toString("base64")}`;
-
-      // 例）html にロゴを差し込みたい場合（任意）
-      // html = html.replace("{{LOGO}}", `<img src="${logoBase64}" alt="logo" width="80" />`);
-    } catch (e) {
-      // ロゴは任意なので失敗しても継続
-      console.warn("logo load failed:", e?.message || e);
-    }
-
-    // 4) メール送信（まずは HTML を本文として送る）
-    const result = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from,
-      to: [to],
-      subject: "AI健康診断レポート",
-      html, // ※上のロゴ置換を使うなら、置換済み html を使ってください
-      // attachments: [...]   // 必要ならここでPDFなどを添付（Base64対応）
+      to,
+      subject: "AI健康診断レポート（PDF添付）",
+      text: "AI健康診断レポートをお送りします。PDFを添付しています。",
+      attachments: [{
+        filename: "health-report.pdf",
+        content: pdfBuffer.toString("base64"),
+        contentType: "application/pdf",
+      }],
     });
 
-    // Resend SDK からの返り値をそのまま返す
-    return NextResponse.json({ ok: true, id: result?.data?.id ?? null, to });
+    if (error) throw error;
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e) {
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
+    console.error("[pdf-email] error:", e);
+    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
 }
+
+onClick={async () => {
+  try {
+    const r = await fetch("/api/pdf-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report: state.data }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || "メール送信に失敗しました");
+    alert("PDFをメール送信しました！");
+  } catch (e) {
+    alert(`送信エラー: ${e.message}`);
+  }
+}}

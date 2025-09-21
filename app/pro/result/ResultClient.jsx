@@ -53,24 +53,57 @@ export default function ResultClient() {
         <p className="text-gray-800">{d.overview}</p>
       </section>
 
-      <section className="border rounded-lg p-4 bg-white">
-        <h2 className="font-semibold mb-3">1週間の食事・運動プラン</h2>
-        <div className="space-y-3">
-          {d.weekPlan.map((day, i) => (
-            <div key={i} className="border rounded p-3">
-              <h3 className="font-medium">{day.day}</h3>
-              <p>朝食: {day.meals.breakfast}</p>
-              <p>昼食: {day.meals.lunch}</p>
-              <p>夕食: {day.meals.dinner}</p>
-              <p>間食: {day.meals.snack}</p>
-              <p>
-                運動: {day.workout.name} {day.workout.minutes}分（{day.workout.intensity}）
-              </p>
-              <p className="text-sm text-gray-500">Tips: {day.workout.tips}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+     {/* 1週間の食事・運動プラン */}
+<section className="space-y-3 mt-6">
+  <h2 className="text-lg font-semibold">1週間の食事・運動プラン</h2>
+
+  <div className="space-y-3">
+    {(state.data?.weekPlan || []).map((d, i) => (
+      <div key={i} className="border p-3 rounded">
+        <h3 className="font-medium">{d.day}</h3>
+        <p>朝食: {d.meals?.breakfast}</p>
+        <p>昼食: {d.meals?.lunch}</p>
+        <p>夕食: {d.meals?.dinner}</p>
+        <p>間食: {d.meals?.snack}</p>
+        <p>運動: {d.workout?.name} {d.workout?.minutes}分（{d.workout?.intensity}）</p>
+        <p className="text-sm text-gray-500">Tips: {d.workout?.tips}</p>
+      </div>
+    ))}
+  </div>
+</section>
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
       <button
         onClick={async () => {
