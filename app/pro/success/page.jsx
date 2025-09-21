@@ -1,3 +1,4 @@
+// app/pro/success/page.jsx
 "use client";
 
 import { useEffect } from "react";
@@ -9,7 +10,6 @@ export default function Success() {
 
   useEffect(() => {
     const sid = sp.get("sid") || "";
-    // 復旧用に保存
     try {
       if (sid) sessionStorage.setItem("sessionId", sid);
     } catch {}
