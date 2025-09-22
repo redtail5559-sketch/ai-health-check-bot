@@ -16,7 +16,7 @@ async function buildPdfBuffer(report) {
 
   let y = 800;
   const draw = (t, size = 12, bold = false) => {
-    page.drawText(t, { x: 50, y, size, font: bold ? fontB : font });
+    page.drawText(String(t ?? ""), { x: 50, y, size, font: bold ? fontB : font });
     y -= size + 6;
   };
 
@@ -32,7 +32,7 @@ async function buildPdfBuffer(report) {
   draw(`食事傾向:${p.diet}`);
   draw("");
   draw("■ 総括", 14, true);
-  draw(String(report?.overview || ""));
+  draw(report?.overview || "");
   draw("");
   draw("■ 今週の目標", 14, true);
   (report?.goals || []).forEach(g => draw(`・${g}`));
@@ -66,7 +66,7 @@ export async function POST(req) {
     const pdfBuffer = await buildPdfBuffer(report);
 
     const { error } = await resend.emails.send({
-      from: process.env.MAIL_FROM,   // 例: no-reply@your-domain
+      from: process.env.MAIL_FROM,          // 例: no-reply@your-domain
       to,
       subject: "AI健康診断レポート（PDF添付）",
       text: "診断レポートをPDFでお送りします。",

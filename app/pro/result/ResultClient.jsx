@@ -80,11 +80,10 @@ export default function ResultClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: d.sessionId,
-          email: d.email,   // 宛先
-          report: d,        // レポート本体（API側で stringify します）
+          email: d.email,
+          report: d,
         }),
       });
-
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.error || "送信エラー");
       alert("PDF作成＆メール送信を開始しました。数分お待ちください。");
