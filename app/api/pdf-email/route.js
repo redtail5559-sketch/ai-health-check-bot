@@ -10,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function buildPdfBuffer(report) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595.28, 841.89]);
+  const page = pdf.addPage([595.28, 841.89]); // A4
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const fontB = await pdf.embedFont(StandardFonts.HelveticaBold);
 
@@ -59,14 +59,15 @@ export async function POST(req) {
     const to = body.email || report?.email;
 
     if (!to) return NextResponse.json({ ok: false, error: "missing recipient email" }, { status: 400 });
-    if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
-      return NextResponse.json({ ok: false, error: "RESEND_API_KEY / MAIL_FROM not set" }, { status: 500 });
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM) {
+      return NextResponse.json({ ok: false, error: "RESEND_API_KEY / RESEND_FROM not set" }, { status: 500 });
     }
 
     const pdfBuffer = await buildPdfBuffer(report);
 
     const { error } = await resend.emails.send({
-      from: process.env.MAIL_FROM,          // 例: no-reply@your-domain
+      from: process.env.RESEND_FROM, // 例: no-reply@your-domain
+
       to,
       subject: "AI健康診断レポート（PDF添付）",
       text: "診断レポートをPDFでお送りします。",
