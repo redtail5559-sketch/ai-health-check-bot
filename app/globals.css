@@ -1,4 +1,7 @@
-@import "tailwindcss";
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-
-
+/* ここから下は任意のグローバルCSS */
+html, body { height: 100%; }
