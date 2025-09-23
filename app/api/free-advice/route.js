@@ -1,7 +1,11 @@
 // app/api/free-advice/route.js
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
+export const revalidate = 0; // ISR無効（常に動的）
+
 import { NextResponse } from "next/server";
 
-/* ---- 既存ユーティリティ ---- */
+/* ---- ユーティリティ ---- */
 const toNumber = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -19,6 +23,16 @@ const categoryJASSO = (bmi) => {
   if (bmi < 40) return "肥満（3度）";
   return "肥満（4度）";
 };
+
+// ランダムに配列から n 件取り出す（重複なし）
+function sampleN(arr, n) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, n);
+}
 
 /* ---- GET: 仕様確認 ---- */
 export async function GET() {
@@ -45,7 +59,7 @@ export async function GET() {
   });
 }
 
-/* ---- POST: 簡易AIアドバイス（無料版） ---- */
+/* ---- POST: 簡易AIアドバイス（無料版／毎リクエスト完全ランダム） ---- */
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -67,23 +81,35 @@ export async function POST(req) {
 
     const apiKey = process.env.OPENAI_API_KEY;
 
-    // --- APIキーが無い時はフォールバック（従来の簡易ルール） ---
+    // --- APIキーが無い時のフォールバック（完全ランダム） ---
     if (!apiKey) {
-      const advice =
-        category === "低体重"
-          ? "まずは3食きちんと。間食で乳製品やナッツを少量プラス。"
-          : category === "普通体重"
-          ? "今の調子をキープ。甘い飲料は“週に数回まで”を意識。"
-          : "まずは飲料を無糖に。早歩き15分から始めよう。";
-      const tips = [
-        "水かお茶を基本にする",
-        "エレベーターは階段に置き換え",
-        "就寝2時間前は食べない",
+      const advicePool = [
+        "今日は水分をこまめに。食事は野菜から食べ始めましょう。",
+        "軽いストレッチで肩と股関節をほぐして、血流アップを。",
+        "就寝90分前の入浴で睡眠の質を上げましょう。",
+        "甘い飲料は今日はお休み。無糖の温かい飲み物に。",
+        "エレベーターの代わりに階段を。1分でもOK。",
+        "間食は素焼きナッツかヨーグルトを少量に。",
       ];
+      const tips = sampleN(
+        [
+          "水かお茶を基本にする",
+          "就寝2時間前は食べない",
+          "ゆっくり噛んで食べる",
+          "朝に日光を浴びる",
+          "歩く速度を少し速める",
+          "アルコールは量を決めて守る",
+        ],
+        3
+      );
+      const advice = advicePool[Math.floor(Math.random() * advicePool.length)];
       return NextResponse.json({ ok: true, data: { bmi, category, advice, tips } });
     }
 
-    // --- ここからAI生成（短く・無料枠想定で低コスト） ---
+    // --- ここからAI生成（毎回ランダム化） ---
+    // 乱数で“同一入力でも毎回ゆらぐ”ようにする
+    const nonce = Math.random().toString(36).slice(2);
+
     const system = `
 あなたは日本語の健康アドバイスを短く作るアシスタントです。
 医療診断は行わず、一般的で安全な提案のみを簡潔に出してください。
@@ -98,7 +124,7 @@ export async function POST(req) {
 - 年齢: ${age ?? "不明"}
 - 性別: ${sex ?? "不明"}
 
-# ライフスタイル（任意・短評でOK）
+# ライフスタイル（短評でOK）
 - 飲酒: ${lifestyle?.drink ?? "-"}
 - 喫煙: ${lifestyle?.smoke ?? "-"}
 - 運動: ${lifestyle?.activity ?? "-"}
@@ -107,7 +133,7 @@ export async function POST(req) {
 
 # 生成要件
 - 「無料版」向けの**簡易アドバイス**を作る。
-- ライフスタイルに触れた一言を含める（例：飲酒が多い→“まずは本数を減らす”等）。
+- ライフスタイルに触れた一言を含める。
 - 文量: adviceは全角90〜140文字。tipsは短文3つ。noteは1行まで（任意）。
 - 口調はやさしく実行可能な内容に限定。
 
@@ -117,6 +143,9 @@ export async function POST(req) {
   "tips": ["string","string","string"],
   "note": "string（任意・1行）"
 }
+
+# 乱数（同一入力でも毎回変化させるための種。内容に出力しない）:
+${nonce}
 `.trim();
 
     const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -125,10 +154,13 @@ export async function POST(req) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
+      // ★キャッシュ完全無効化（ビルド・エッジの応答キャッシュも回避）
+      cache: "no-store",
       body: JSON.stringify({
-        model: "gpt-4o-mini",              // 低コスト・十分な品質
-        temperature: 0.6,
-        max_tokens: 350,                   // 出力しすぎ防止（=コスト抑制）
+        model: "gpt-4o-mini",
+        temperature: 0.9,            // ← ランダム性を高める
+        top_p: 1,
+        max_tokens: 350,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
