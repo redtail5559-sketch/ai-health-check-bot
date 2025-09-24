@@ -1,3 +1,4 @@
+// app/pro/result/ResultClient.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ export default function ResultClient() {
     const sid = sp.get("sessionId") || "";
     (async () => {
       try {
-        const r = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}`, {
+        const r = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}&t=${Date.now()}`, {
           cache: "no-store",
         });
         const j = await r.json();
@@ -24,9 +25,63 @@ export default function ResultClient() {
   }, [sp]);
 
   if (state.loading) return <main className="p-6">レポート生成中…</main>;
-  if (state.error) return <main className="p-6 text-red-500">エラー: {state.error}</main>;
+  if (state.error)   return <main className="p-6 text-red-500">エラー: {state.error}</main>;
 
   const d = state.data;
+
+  const buildTextReport = () => {
+    const lines = [
+      "AI健康レポート",
+      "",
+      `BMI: ${d.bmi ?? "-"}`,
+      `概要: ${d.overview ?? "-"}`,
+      "",
+      "【1週間プラン】",
+      ...(d.weekPlan || []).map((w) =>
+        [
+          `■ ${w.day}`,
+          `  朝: ${w.meals?.breakfast ?? "-"}`,
+          `  昼: ${w.meals?.lunch ?? "-"}`,
+          `  夜: ${w.meals?.dinner ?? "-"}`,
+          `  間: ${w.meals?.snack ?? "-"}`,
+          `  運動: ${w.workout?.name ?? "-"} ${w.workout?.minutes ?? "-"}分`,
+        ].join("\n")
+      ),
+    ];
+    return lines.join("\n");
+  };
+
+  const handleSend = async () => {
+    try {
+      let to = d.email;
+      if (!to) {
+        to = window.prompt("送信先メールアドレスを入力してください") || "";
+      }
+      if (!to) {
+        alert("メールアドレスが空です");
+        return;
+      }
+      const res = await fetch(`/api/pdf-email?t=${Date.now()}&to=${encodeURIComponent(to)}`, { // ← クエリにも付与
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  cache: "no-store",
+  body: JSON.stringify({
+    to,                                // ← ボディにも入れる（保険で二重）
+    subject: "AI健康レポート",
+    report: buildTextReport(),
+  }),
+});
+const json = await res.json();
+if (!res.ok || !json?.ok) {
+  alert("送信エラー詳細:\n" + JSON.stringify(json, null, 2));
+  return;
+}
+alert("メール送信しました。受信ボックスをご確認ください。");
+
+    } catch (e) {
+      alert(`エラー: ${e.message}`);
+    }
+  };
 
   return (
     <main className="p-6 max-w-3xl mx-auto space-y-6">
@@ -44,58 +99,42 @@ export default function ResultClient() {
           <div>飲酒: {d.profile.drink}</div>
           <div>喫煙: {d.profile.smoke}</div>
           <div>食事傾向: {d.profile.diet}</div>
-          <div>送付先メール: {d.email}</div>
+          <div>送付先メール: {d.email || "(未設定)"}</div>
         </div>
       </section>
 
       <section className="border rounded-lg p-4 bg-white">
         <h2 className="font-semibold mb-2">総括</h2>
-        <p className="text-gray-800">{d.overview}</p>
+        <p className="text-gray-800 whitespace-pre-wrap">{d.overview}</p>
       </section>
 
-     {/* 1週間の食事・運動プラン */}
-<section className="space-y-3 mt-6">
-  <h2 className="text-lg font-semibold">1週間の食事・運動プラン</h2>
+      <section className="space-y-3 mt-6">
+        <h2 className="text-lg font-semibold">1週間の食事・運動プラン</h2>
+        <div className="space-y-3">
+          {(d.weekPlan || []).map((w, i) => (
+            <div key={i} className="border p-3 rounded">
+              <h3 className="font-medium">{w.day}</h3>
+              <p>朝食: {w.meals?.breakfast}</p>
+              <p>昼食: {w.meals?.lunch}</p>
+              <p>夕食: {w.meals?.dinner}</p>
+              <p>間食: {w.meals?.snack}</p>
+              <p>運動: {w.workout?.name} {w.workout?.minutes}分</p>
+              <p className="text-sm text-gray-500">Tips: {w.workout?.tips}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-  <div className="space-y-3">
-    {(state.data?.weekPlan || []).map((d, i) => (
-      <div key={i} className="border p-3 rounded">
-        <h3 className="font-medium">{d.day}</h3>
-        <p>朝食: {d.meals?.breakfast}</p>
-        <p>昼食: {d.meals?.lunch}</p>
-        <p>夕食: {d.meals?.dinner}</p>
-        <p>間食: {d.meals?.snack}</p>
-        <p>運動: {d.workout?.name} {d.workout?.minutes}分（{d.workout?.intensity}）</p>
-        <p className="text-sm text-gray-500">Tips: {d.workout?.tips}</p>
-      </div>
-    ))}
-  </div>
-</section>
- 
-<button
-  onClick={async () => {
-    try {
-      const r = await fetch("/api/pdf-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: d.sessionId,
-          email: d.email,
-          report: d,
-        }),
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || "送信エラー");
-      alert("PDF作成＆メール送信を開始しました。数分お待ちください。");
-    } catch (e) {
-      alert(`エラー: ${e.message}`);
-    }
-  }}
-  className="rounded bg-black text-white px-5 py-3"
->
-  PDFをメールで送る
-</button>
+      {/* デバッグ情報の表示（AI が使われているか一目で分かる） */}
+      <section className="text-xs text-gray-500">
+        <pre className="bg-gray-50 p-3 rounded overflow-auto">
+{JSON.stringify(d.__debug, null, 2)}
+        </pre>
+      </section>
 
+      <button onClick={handleSend} className="rounded bg-black text-white px-5 py-3">
+        PDFをメールで送る
+      </button>
     </main>
   );
 }

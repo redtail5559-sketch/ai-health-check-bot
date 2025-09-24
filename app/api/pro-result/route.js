@@ -1,11 +1,13 @@
 // app/api/pro-result/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+const DAYS = ["月","火","水","木","金","土","日"];
 
 function bmi(heightCm, weightKg) {
   const h = Number(heightCm) / 100;
@@ -13,60 +15,10 @@ function bmi(heightCm, weightKg) {
   return Math.round((Number(weightKg) / (h * h)) * 10) / 10;
 }
 
-const DAYS = ["月", "火", "水", "木", "金", "土", "日"];
-
-function buildWeekPlan(profile) {
-  const { diet = "", activity = "" } = profile;
-
-  const lean = {
-    breakfast: "オートミール＋ヨーグルト＋バナナ",
-    lunch: "鶏胸肉サラダ＋玄米",
-    dinner: "鮭の塩焼き＋味噌汁＋野菜",
-    snack: "素焼きナッツ or プロテイン",
-  };
-  const bulk = {
-    breakfast: "卵2個＋トースト＋フルーツ",
-    lunch: "牛ステーキ150g＋白米",
-    dinner: "鶏もも照り焼き＋パスタ小皿＋サラダ",
-    snack: "チーズ or ギリシャヨーグルト",
-  };
-  const balance = {
-    breakfast: "和定食（ごはん少なめ）",
-    lunch: "サーモン丼（小盛）",
-    dinner: "豆腐ハンバーグ＋サラダ＋スープ",
-    snack: "ダークチョコ少量 or きなこヨーグルト",
-  };
-
-  let baseMeals = balance;
-  if (diet.includes("減量")) baseMeals = lean;
-  if (diet.includes("増量")) baseMeals = bulk;
-
-  const low = { name: "ウォーキング", minutes: 30, intensity: "低〜中", tips: "会話できる速度でOK" };
-  const mid = { name: "早歩き＋自重筋トレ", minutes: 40, intensity: "中", tips: "スクワット10×3など" };
-  const hi  = { name: "有酸素＋筋トレ", minutes: 50, intensity: "中〜高", tips: "有酸素30分＋筋トレ20分" };
-
-  let w = mid;
-  if (activity.includes("低い")) w = low;
-  if (activity.includes("高い")) w = hi;
-
-  const easy = { name: "ストレッチ＋散歩", minutes: 20, intensity: "低", tips: "寝る前10分ストレッチ" };
-
-  const week = [];
-  for (let i = 0; i < 7; i++) {
-    const isRecovery = i === 2 || i === 6; // 水・日
-    week.push({
-      day: `${DAYS[i]}曜日`,
-      meals: { ...baseMeals },
-      workout: isRecovery ? easy : w,
-    });
-  }
-  return week;
-}
-
 export async function GET(req) {
   try {
-    const { searchParams, origin } = new URL(req.url);
-    const sessionId = searchParams.get("sessionId") || "";
+    const url = new URL(req.url);
+    const sessionId = url.searchParams.get("sessionId") || "";
     if (!sessionId) return NextResponse.json({ ok: false, error: "missing sessionId" }, { status: 400 });
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -98,18 +50,87 @@ export async function GET(req) {
       "平日3日＋週末いずれか1日、計4日はアクティブに動く",
     ];
 
+    // ===== ここで必ず AI プラン API を叩く =====
+    const origin = url.origin;
+    const seed = Math.random().toString(36).slice(2); // 毎回ゆらぐ
+    let usedAiPlan = false;
+    let weekPlan = [];
+    let aiSummary = "";
+    let aiError = null;
+
+    try {
+      const aiRes = await fetch(`${origin}/api/ai-plan?t=${Date.now()}&seed=${seed}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          sessionId,
+          inputs: { profile, goals, bmi: bmiVal, seed },
+        }),
+      });
+
+      const aiJson = await aiRes.json();
+      if (!aiRes.ok) throw new Error(aiJson?.error || `ai-plan HTTP ${aiRes.status}`);
+
+      const plan = aiJson?.plan || {};
+      const days = ["月","火","水","木","金","土","日"];
+      const week = Array.isArray(plan.week) ? plan.week : [];
+
+      weekPlan = days.map((d, i) => {
+        const src = week[i] || {};
+        const m = src.meals || {};
+        const w = src.workout || {};
+        return {
+          day: `${d}曜日`,
+          meals: {
+            breakfast: m.breakfast || "和定食（ご飯少なめ）",
+            lunch:     m.lunch     || "鶏むね丼",
+            dinner:    m.dinner    || "豆腐と野菜炒め",
+            snack:     m.snack     || "なし",
+          },
+          workout: {
+            name:     w.menu || "早歩き",
+            minutes:  Number.isFinite(w.durationMin) ? w.durationMin : 20,
+            intensity:"中",
+            tips:     w.notes || "余裕があれば体幹トレ各30秒×2",
+          },
+        };
+      });
+
+      aiSummary = plan?.profile?.summary || "";
+      usedAiPlan = true;
+    } catch (e) {
+      aiError = String(e?.message || e);
+      // フォールバック（テンプレ）
+      const mid  = { name: "早歩き＋自重筋トレ", minutes: 40, intensity: "中", tips: "スクワット10×3など" };
+      const easy = { name: "ストレッチ＋散歩",   minutes: 20, intensity: "低", tips: "寝る前10分ストレッチ" };
+      const baseMeals = {
+        breakfast: "和定食（ごはん少なめ）",
+        lunch:     "サーモン丼（小盛）",
+        dinner:    "豆腐ハンバーグ＋サラダ＋スープ",
+        snack:     "きなこヨーグルト",
+      };
+      weekPlan = DAYS.map((d, i) => ({
+        day: `${d}曜日`,
+        meals: { ...baseMeals },
+        workout: i === 2 || i === 6 ? easy : mid,
+      }));
+    }
+
     const data = {
       sessionId,
       email: session?.customer_details?.email || md.email || "",
       profile,
       bmi: bmiVal,
-      overview,
+      overview: aiSummary ? `${overview}\n${aiSummary}` : overview,
       goals,
-      weekPlan: buildWeekPlan(profile),
+      weekPlan,
       createdAt: new Date().toISOString(),
       link: `${origin}/pro/result?sessionId=${encodeURIComponent(sessionId)}`,
+      __debug: { usedAiPlan, aiError, seed }, // ← 画面で見えるように返す
     };
 
+    console.log("[pro-result] usedAiPlan:", usedAiPlan, "aiError:", aiError);
     return NextResponse.json({ ok: true, data }, { status: 200 });
   } catch (e) {
     console.error("[pro-result] error:", e);
