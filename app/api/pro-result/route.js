@@ -15,6 +15,11 @@ function bmi(heightCm, weightKg) {
   return Math.round((Number(weightKg) / (h * h)) * 10) / 10;
 }
 
+// 安全に文字列→オブジェクトへ寄せる小道具
+function safeObj(v, def = {}) { return (v && typeof v === "object" && !Array.isArray(v)) ? v : def; }
+function safeStr(v, def = "") { return (typeof v === "string" && v.trim()) ? v.trim() : def; }
+function safeNum(v, def = 0)   { const n = Number(v); return Number.isFinite(n) ? n : def; }
+
 export async function GET(req) {
   try {
     const url = new URL(req.url);
@@ -37,7 +42,7 @@ export async function GET(req) {
     };
 
     const bmiVal = bmi(profile.heightCm, profile.weightKg);
-    const overview = (() => {
+    const overviewBase = (() => {
       if (!bmiVal) return "入力値から全体傾向を評価しました。無理なく続けられる内容に調整しています。";
       if (bmiVal < 18.5) return `BMIは${bmiVal}。やせ傾向。タンパク質と睡眠を確保しつつ計画的に増量を。`;
       if (bmiVal < 25)   return `BMIは${bmiVal}。標準。姿勢・筋力・体力の底上げを狙いましょう。`;
@@ -50,9 +55,9 @@ export async function GET(req) {
       "平日3日＋週末いずれか1日、計4日はアクティブに動く",
     ];
 
-    // ===== ここで必ず AI プラン API を叩く =====
+    // ===== AIプラン取得（常に呼ぶ） =====
     const origin = url.origin;
-    const seed = Math.random().toString(36).slice(2); // 毎回ゆらぐ
+    const seed = Math.random().toString(36).slice(2);
     let usedAiPlan = false;
     let weekPlan = [];
     let aiSummary = "";
@@ -72,36 +77,40 @@ export async function GET(req) {
       const aiJson = await aiRes.json();
       if (!aiRes.ok) throw new Error(aiJson?.error || `ai-plan HTTP ${aiRes.status}`);
 
-      const plan = aiJson?.plan || {};
-      const days = ["月","火","水","木","金","土","日"];
-      const week = Array.isArray(plan.week) ? plan.week : [];
+      const plan = safeObj(aiJson?.plan);
+      const week = Array.isArray(plan?.week) ? plan.week : [];
 
+      // 文字列/欠損でも安全に 7 件へ正規化
+      const days = DAYS;
       weekPlan = days.map((d, i) => {
-        const src = week[i] || {};
-        const m = src.meals || {};
-        const w = src.workout || {};
+        const raw = week[i]; // 何であっても OK（string でも）
+        const itemObj = safeObj(raw); // string なら {}
+
+        const meals = safeObj(itemObj.meals);
+        const workout = safeObj(itemObj.workout);
+
         return {
           day: `${d}曜日`,
           meals: {
-            breakfast: m.breakfast || "和定食（ご飯少なめ）",
-            lunch:     m.lunch     || "鶏むね丼",
-            dinner:    m.dinner    || "豆腐と野菜炒め",
-            snack:     m.snack     || "なし",
+            breakfast: safeStr(meals.breakfast, "和定食（ごはん少なめ）"),
+            lunch:     safeStr(meals.lunch,     "鶏むね丼（小盛）"),
+            dinner:    safeStr(meals.dinner,    "豆腐ハンバーグ＋サラダ"),
+            snack:     safeStr(meals.snack,     "きなこヨーグルト"),
           },
           workout: {
-            name:     w.menu || "早歩き",
-            minutes:  Number.isFinite(w.durationMin) ? w.durationMin : 20,
+            name:     safeStr(workout.menu, "早歩き"),
+            minutes:  safeNum(workout.durationMin, 30),
             intensity:"中",
-            tips:     w.notes || "余裕があれば体幹トレ各30秒×2",
+            tips:     safeStr(workout.notes, "体幹トレ各30秒×2"),
           },
         };
       });
 
-      aiSummary = plan?.profile?.summary || "";
+      aiSummary = safeStr(plan?.profile?.summary, "");
       usedAiPlan = true;
     } catch (e) {
       aiError = String(e?.message || e);
-      // フォールバック（テンプレ）
+      // フォールバック
       const mid  = { name: "早歩き＋自重筋トレ", minutes: 40, intensity: "中", tips: "スクワット10×3など" };
       const easy = { name: "ストレッチ＋散歩",   minutes: 20, intensity: "低", tips: "寝る前10分ストレッチ" };
       const baseMeals = {
@@ -122,12 +131,12 @@ export async function GET(req) {
       email: session?.customer_details?.email || md.email || "",
       profile,
       bmi: bmiVal,
-      overview: aiSummary ? `${overview}\n${aiSummary}` : overview,
+      overview: aiSummary ? `${overviewBase}\n${aiSummary}` : overviewBase,
       goals,
       weekPlan,
       createdAt: new Date().toISOString(),
       link: `${origin}/pro/result?sessionId=${encodeURIComponent(sessionId)}`,
-      __debug: { usedAiPlan, aiError, seed }, // ← 画面で見えるように返す
+      __debug: { usedAiPlan, aiError, seed },
     };
 
     console.log("[pro-result] usedAiPlan:", usedAiPlan, "aiError:", aiError);
