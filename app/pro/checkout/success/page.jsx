@@ -1,5 +1,6 @@
 // app/pro/checkout/success/page.jsx
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 import { Suspense } from "react";
