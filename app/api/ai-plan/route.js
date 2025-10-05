@@ -1,154 +1,189 @@
 // app/api/ai-plan/route.js
-export const runtime = "edge";
+// -------------- 実行/キャッシュ方針 --------------
+export const runtime = "nodejs";           // ← Edge から Node に変更（安定化）
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
+import { randomInt } from "crypto";        // Node の乱数
 
-// --- 重複を簡易検出して微修正（最終防衛ライン） ---
-function diversifyWeek(week) {
-  if (!Array.isArray(week)) return week;
-  const tweakMeal = (s, salt) =>
-    typeof s === "string" ? `${s}（変化:${salt}）` : s;
-  const tweakWork = (s, salt) =>
-    typeof s === "string" ? `${s}＋バリエーション${salt}` : s;
-
-  const seen = new Set();
-  for (let i = 0; i < week.length; i++) {
-    const w = week[i] || {};
-    const sig =
-      JSON.stringify([w?.meals?.breakfast, w?.meals?.lunch, w?.meals?.dinner, w?.workout?.menu]) || "";
-    if (seen.has(sig)) {
-      const salt = i + 1;
-      // 朝昼夕・ワークアウトに軽い変化を入れる
-      if (w?.meals) {
-        w.meals.breakfast = tweakMeal(w.meals.breakfast, salt);
-        w.meals.lunch = tweakMeal(w.meals.lunch, salt);
-        w.meals.dinner = tweakMeal(w.meals.dinner, salt);
-      }
-      if (w?.workout) {
-        w.workout.menu = tweakWork(w.workout.menu, salt);
-      }
-    }
-    seen.add(
-      JSON.stringify([w?.meals?.breakfast, w?.meals?.lunch, w?.meals?.dinner, w?.workout?.menu]) || ""
-    );
-    week[i] = w;
+/* -------------------- 小さいユーティリティ -------------------- */
+// シード付き擬似乱数（Node/Edge両対応）
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function pickUnique(n, arr, rnd) {
+  const pool = [...arr];
+  const out = [];
+  for (let i = 0; i < n && pool.length; i++) {
+    const idx = Math.floor(rnd() * pool.length);
+    out.push(pool.splice(idx, 1)[0]); // 非復元抽出
   }
-  return week;
+  return out;
+}
+function dayKeys() {
+  return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+}
+function isPlan(obj) {
+  const keys = dayKeys();
+  try {
+    return keys.every((k) => {
+      const d = obj?.[k];
+      return (
+        d &&
+        typeof d.breakfast === "string" &&
+        typeof d.lunch === "string" &&
+        typeof d.dinner === "string" &&
+        typeof d.workout === "string" &&
+        typeof d.tips === "string"
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+function hasDup(a) {
+  const s = new Set(a);
+  return s.size !== a.length;
 }
 
+/* -------------------- フォールバックの手作りプラン -------------------- */
+function fallbackPlan(seed = Date.now()) {
+  const rnd = mulberry32(seed);
+  const BF = [
+    "納豆＋卵かけご飯","オートミール粥＋味噌汁","ヨーグルト＋バナナ","トースト＋茹で卵",
+    "鮭おにぎり＋野菜スープ","フルーツ＋カッテージチーズ","和風おかゆ＋梅干し",
+  ];
+  const LU = [
+    "蕎麦＋温玉","鶏胸のサラダボウル","焼き魚定食（ご飯小）","野菜たっぷり味噌ラーメン（麺少なめ）",
+    "チキンブリトー（野菜多め）","きのこパスタ（小盛り）","豆腐ステーキ＆ひじき",
+  ];
+  const DI = [
+    "豚の生姜焼き＋キャベツ","鮭の塩焼き＋ほうれん草おひたし","鶏団子スープ＋玄米","野菜たっぷり鍋",
+    "麻婆豆腐（ご飯少なめ）","冷しゃぶサラダ","サバ味噌＋小鉢2品",
+  ];
+  const WO = [
+    "スクワット15回×3＋プランク60秒×2","早歩き30分","体幹サーキット10分","ランジ左右10回×3＋腕立て10回×2",
+    "縄跳び3分×3（休憩1分）","ストレッチ15分＋ヒップヒンジ練習","自重筋トレ全身20分",
+  ];
+  const TP = [
+    "食事はゆっくり20分以上。よく噛む。","水分をこまめに200ml×6～8回。","寝る90分前に入浴で体温リズム調整。",
+    "タンパク質を毎食20g目安に。","おやつは素焼きナッツや高カカオ。","昼の散歩で日光を浴びる。","就寝前はスマホの光を控えめに。",
+  ];
+
+  const b = pickUnique(7, BF, rnd);
+  const l = pickUnique(7, LU, rnd);
+  const d = pickUnique(7, DI, rnd);
+  const w = pickUnique(7, WO, rnd);
+  const t = pickUnique(7, TP, rnd);
+
+  const days = dayKeys();
+  const plan = {};
+  for (let i = 0; i < days.length; i++) {
+    plan[days[i]] = { breakfast: b[i], lunch: l[i], dinner: d[i], workout: w[i], tips: t[i] };
+  }
+  return plan;
+}
+
+/* -------------------- OpenAI 呼び出し（寛容化版） -------------------- */
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+async function callOpenAI({ profile, seed }) {
+  if (!process.env.OPENAI_API_KEY) return null;
+
+  const system =
+    "あなたは栄養と運動のアドバイザーです。" +
+    "7日分の食事(朝/昼/夕)と運動を、日本の家庭で用意しやすい内容で出力。" +
+    "各曜日で重複しないこと。各日1行のTipsも付与。出力は日本語。";
+
+  const prompt = `
+以下の形式の JSON だけを返してください（前後に説明やコードフェンスは不要）:
+{
+  "mon": {"breakfast":"...", "lunch":"...", "dinner":"...", "workout":"...", "tips":"..."},
+  "tue": {...},
+  "wed": {...},
+  "thu": {...},
+  "fri": {...},
+  "sat": {...},
+  "sun": {...}
+}
+プロフィール: ${JSON.stringify(profile || {}, null, 2)}
+`;
+
+  // Chat Completions + json_object は 4o/4o-mini 系でサポート
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.9,
+    seed, // バリエーションを持たせる
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  // 受け取りを寛容にパース
+  const text = res.choices?.[0]?.message?.content ?? "";
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { obj = JSON.parse(m[0]); } catch {}
+    }
+  }
+  return obj;
+}
+
+/* -------------------- メイン -------------------- */
 export async function POST(req) {
   try {
-    const { sessionId, inputs } = await req.json();
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId required" }, { status: 400 });
+    // 入力
+    let body = {};
+    try { body = await req.json(); } catch { body = {}; }
+    const profile = body?.profile || null;
+
+    // 安定した乱数（毎回変わる）。EdgeのMath.random依存を避ける
+    const seed = randomInt(1, 2 ** 31 - 1);
+
+    // 1) まず AI に頼む（失敗してもフォールバックで絶対返す）
+    let plan = await callOpenAI({ profile, seed });
+
+    // 2) 壊れていたらフォールバック
+    if (!isPlan(plan)) {
+      plan = fallbackPlan(seed);
     }
 
-    // 同じ入力でも必ず揺らぐための乱数 + 曜日ごとのシード
-    const seed = Math.random().toString(36).slice(2);
-    const daySeeds = ["月","火","水","木","金","土","日"].map((d,i) => `${d}-${seed}-${i}`);
-
-    const system = [
-      "あなたは有能なパーソナルトレーナー兼栄養士です。",
-      "出力は**必ず**下記 Strict JSON。説明文やマークダウンは一切含めない。日本語で値を埋める。",
-      "一般成人向け。医療診断は行わず、安全第一で一般的な提案のみ。数値は半角。",
-      "",
-      "重要な制約：",
-      "- 7日分（曜日は月→日）を**必ず**出す。",
-      "- **各曜日で食事・運動の内容を変える**（同じ文言の繰り返し禁止）。",
-      "- 同じ料理でも具材・量・調理法等でバリエーションをつけること。",
-      "- workout.menu は自宅/自重中心で可。器具が必要な場合は notes に代替案。",
-      "",
-      "schema:",
-      `{
-        "profile": { "summary": string },
-        "week": [
-          {
-            "day": "月"|"火"|"水"|"木"|"金"|"土"|"日",
-            "meals": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
-            "workout": { "menu": string, "durationMin": number, "notes": string }
-          }
-        ],
-        "notes": [string,string,string]
-      }`,
-    ].join("\n");
-
-    const user = [
-      "【利用者情報（JSON）】",
-      JSON.stringify(inputs ?? {}, null, 2),
-      "",
-      "【生成要件】",
-      "- 1週間分の食事と運動メニューをバランスよく提案する。",
-      "- 食事は日本の家庭で実行しやすい表現（例：和定食/丼/麺類も“具や量”で調整）",
-      "- meals.snack は未使用なら \"なし\" と書く。",
-      "- 同じ表現の連続やコピペ的な繰り返しを避ける。",
-      "- JSON 以外は一切出力しない。",
-      "",
-      "【曜日ごとのシード（出力に含めない／内部ランダム化用）】",
-      JSON.stringify(daySeeds),
-      "",
-      "【グローバルシード（出力に含めない）】",
-      seed,
-    ].join("\n");
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "OPENAI_API_KEY is missing" }, { status: 500 });
+    // 3) 最終チェック：各列で重複が無いよう補正
+    const days = dayKeys();
+    const fixFields = ["breakfast", "lunch", "dinner", "workout", "tips"];
+    const pools = fallbackPlan(seed + 7); // 予備プール
+    for (const f of fixFields) {
+      const values = days.map((k) => String(plan[k]?.[f] || ""));
+      if (hasDup(values)) {
+        for (let i = 0; i < days.length; i++) {
+          plan[days[i]][f] = pools[days[i]][f];
+        }
+      }
     }
 
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      cache: "no-store", // ← キャッシュ禁止
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 1.0,         // ← 揺らぎを最大寄りに
-        top_p: 1,
-        presence_penalty: 0.6,    // ← 同じ話題の連発を抑制
-        frequency_penalty: 0.5,   // ← 同じ言い回しの連発を抑制
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) {
-      const m = data?.error?.message || `OpenAI HTTP ${resp.status}`;
-      throw new Error(m);
-    }
-
-    let planJson = {};
-    try {
-      planJson = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
-    } catch {
-      planJson = {};
-    }
-
-    // 最低限の形を補完
-    const days = ["月","火","水","木","金","土","日"];
-    planJson.week = Array.isArray(planJson.week) ? planJson.week.slice(0, 7) : [];
-    for (let i = 0; i < 7; i++) {
-      if (!planJson.week[i]) planJson.week[i] = {};
-      planJson.week[i].day ??= days[i];
-      planJson.week[i].meals ??= { breakfast: "和定食（ご飯少なめ）", lunch: "鶏むね丼", dinner: "豆腐と野菜炒め", snack: "なし" };
-      planJson.week[i].workout ??= { menu: "早歩き", durationMin: 20, notes: "余裕あれば体幹プランク各30秒×2" };
-    }
-
-    // 曜日間で同一内容が並ぶ場合はサーバー側で微修正して差異を作る
-    planJson.week = diversifyWeek(planJson.week);
-
-    planJson.profile ??= { summary: "一般向けの安全な範囲で調整した1週間プランです。" };
-    planJson.notes ??= ["無理のない範囲で実行しましょう", "水分はこまめに、甘い飲料は控えめに", "体調不良時は休みを優先する"];
-
-    return NextResponse.json({ ok: true, plan: planJson });
+    return NextResponse.json(
+      { ok: true, plan, seed },
+      { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (e) {
-    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
+    console.error("AIプラン生成エラー:", e);
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 400, headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   }
 }

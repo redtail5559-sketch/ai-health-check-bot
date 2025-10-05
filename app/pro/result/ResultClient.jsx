@@ -2,139 +2,141 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
-export default function ResultClient() {
-  const sp = useSearchParams();
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+const JP = { mon: "月", tue: "火", wed: "水", thu: "木", fri: "金", sat: "土", sun: "日" };
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DEFAULT_TIPS = [
+  "水分を200ml×6〜8回こまめに",
+  "就寝90分前の入浴で深部体温リズム調整",
+  "タンパク質を毎食20g目安",
+  "よく噛んで20分以上かけて食事",
+  "昼休みに10分散歩で日光を浴びる",
+  "間食は素焼きナッツか高カカオ",
+  "寝る前は画面の光を控えめに",
+];
 
+function isReportReady(report) {
+  return !!report && typeof report === "object" && !!report.mon;
+}
+function maskEmail(v = "") {
+  const [name, domain] = v.split("@");
+  if (!name || !domain) return v;
+  return (name.slice(0, 2) + "****") + "@" + domain;
+}
+
+export default function ResultClient({ report = {}, email: initialEmail = "", debug }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState(initialEmail); // ← 表示はせず、内部だけで保持
+
+  // 1) 初回：クエリ > localStorage の順で採用（レポート画面には入力欄なし）
   useEffect(() => {
-    const sid = sp.get("sessionId") || "";
-    (async () => {
-      try {
-        const r = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}&t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        const j = await r.json();
-        if (!j.ok) throw new Error(j.error || "failed");
-        setState({ loading: false, error: "", data: j.data });
-      } catch (e) {
-        setState({ loading: false, error: e.message, data: null });
+    if (initialEmail) {
+      setEmail(initialEmail);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("userEmail", initialEmail);
       }
-    })();
-  }, [sp]);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("userEmail");
+      if (saved) setEmail(saved);
+    }
+  }, [initialEmail]);
 
-  if (state.loading) return <main className="p-6">レポート生成中…</main>;
-  if (state.error)   return <main className="p-6 text-red-500">エラー: {state.error}</main>;
-
-  const d = state.data;
-
-  const buildTextReport = () => {
-    const lines = [
-      "AI健康レポート",
-      "",
-      `BMI: ${d.bmi ?? "-"}`,
-      `概要: ${d.overview ?? "-"}`,
-      "",
-      "【1週間プラン】",
-      ...(d.weekPlan || []).map((w) =>
-        [
-          `■ ${w.day}`,
-          `  朝: ${w.meals?.breakfast ?? "-"}`,
-          `  昼: ${w.meals?.lunch ?? "-"}`,
-          `  夜: ${w.meals?.dinner ?? "-"}`,
-          `  間: ${w.meals?.snack ?? "-"}`,
-          `  運動: ${w.workout?.name ?? "-"} ${w.workout?.minutes ?? "-"}分`,
-        ].join("\n")
-      ),
-    ];
-    return lines.join("\n");
+  // 2) 「送信先を変更」クリック時だけダイアログで入力
+  const changeEmail = () => {
+    if (typeof window === "undefined") return;
+    const v = window.prompt("送信先メールアドレスを入力してください", email || "")?.trim() || "";
+    if (!v) return;
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    if (!ok) {
+      alert("メールアドレスの形式が正しくありません。");
+      return;
+    }
+    setEmail(v);
+    window.localStorage.setItem("userEmail", v);
   };
 
-  const handleSend = async () => {
-    try {
-      let to = d.email;
-      if (!to) {
-        to = window.prompt("送信先メールアドレスを入力してください") || "";
-      }
-      if (!to) {
-        alert("メールアドレスが空です");
-        return;
-      }
-      const res = await fetch(`/api/pdf-email?t=${Date.now()}&to=${encodeURIComponent(to)}`, { // ← クエリにも付与
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  cache: "no-store",
-  body: JSON.stringify({
-    to,                                // ← ボディにも入れる（保険で二重）
-    subject: "AI健康レポート",
-    report: buildTextReport(),
-  }),
-});
-const json = await res.json();
-if (!res.ok || !json?.ok) {
-  alert("送信エラー詳細:\n" + JSON.stringify(json, null, 2));
-  return;
-}
-alert("メール送信しました。受信ボックスをご確認ください。");
+  const sendPdf = async () => {
+    if (!isReportReady(report)) {
+      alert("レポートを読み込み中です。数秒待ってからもう一度お試しください。");
+      return;
+    }
+    const to = (email || "").trim();
+    if (!to) {
+      // 未設定ならまず設定してから
+      changeEmail();
+      if (!(window?.localStorage.getItem("userEmail") || "").trim()) return;
+    }
+    const dest = (email || window?.localStorage.getItem("userEmail") || "").trim();
+    if (!dest) return;
 
+    setSending(true);
+    try {
+      const res = await fetch("/api/pdf-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: dest, report }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "送信に失敗しました");
+      setSent(true);
     } catch (e) {
-      alert(`エラー: ${e.message}`);
+      console.error("[pdf-email] send error:", e);
+      alert(`送信エラー: ${e?.message || String(e)}`);
+    } finally {
+      setSending(false);
     }
   };
 
   return (
-    <main className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">AI健康診断bot　診断レポート</h1>
-
-      <section className="border rounded-lg p-4 bg-white">
-        <h2 className="font-semibold mb-2">プロフィール</h2>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-700">
-          <div>身長: {d.profile.heightCm} cm</div>
-          <div>体重: {d.profile.weightKg} kg</div>
-          <div>年齢: {d.profile.age}</div>
-          <div>性別: {d.profile.sex}</div>
-          <div>運動量: {d.profile.activity}</div>
-          <div>睡眠: {d.profile.sleep}</div>
-          <div>飲酒: {d.profile.drink}</div>
-          <div>喫煙: {d.profile.smoke}</div>
-          <div>食事傾向: {d.profile.diet}</div>
-          <div>送付先メール: {d.email || "(未設定)"}</div>
-        </div>
-      </section>
-
-      <section className="border rounded-lg p-4 bg-white">
-        <h2 className="font-semibold mb-2">総括</h2>
-        <p className="text-gray-800 whitespace-pre-wrap">{d.overview}</p>
-      </section>
-
-      <section className="space-y-3 mt-6">
-        <h2 className="text-lg font-semibold">1週間の食事・運動プラン</h2>
-        <div className="space-y-3">
-          {(d.weekPlan || []).map((w, i) => (
-            <div key={i} className="border p-3 rounded">
-              <h3 className="font-medium">{w.day}</h3>
-              <p>朝食: {w.meals?.breakfast}</p>
-              <p>昼食: {w.meals?.lunch}</p>
-              <p>夕食: {w.meals?.dinner}</p>
-              <p>間食: {w.meals?.snack}</p>
-              <p>運動: {w.workout?.name} {w.workout?.minutes}分</p>
-              <p className="text-sm text-gray-500">Tips: {w.workout?.tips}</p>
+    <div className="space-y-4">
+      {/* 本文：曜日ごとのカード */}
+      {DAYS.map((d, idx) => {
+        const v = report?.[d] || {};
+        const tips = v.tips ?? DEFAULT_TIPS[idx % DEFAULT_TIPS.length];
+        return (
+          <div key={d} className="rounded-lg border bg-white p-4">
+            <div className="mb-2 font-semibold">{JP[d]}曜日</div>
+            <div className="space-y-1 text-sm">
+              <div><span className="font-semibold">朝食：</span>{v.breakfast || "-"}</div>
+              <div><span className="font-semibold">昼食：</span>{v.lunch || "-"}</div>
+              <div><span className="font-semibold">夕食：</span>{v.dinner || "-"}</div>
+              <div><span className="font-semibold">運動：</span>{v.workout || "-"}</div>
+              <div className="text-xs text-gray-400">Tips: {tips}</div>
             </div>
-          ))}
+          </div>
+        );
+      })}
+
+      {/* 送信操作：メール欄は出さず、保存済みアドレスを使用 */}
+      <div className="mb-28 mt-6 flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:justify-end">
+        <div className="text-xs text-gray-500 sm:mr-2">
+          送信先：{email ? maskEmail(email) : "（未設定）"}
+          <button
+            type="button"
+            onClick={changeEmail}
+            className="ml-2 underline hover:opacity-80"
+          >
+            変更
+          </button>
         </div>
-      </section>
+        <button
+          onClick={sendPdf}
+          disabled={sending}
+          className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
+          title={!email ? "クリックして送信先を設定してください" : ""}
+        >
+          {sending ? "送信中…" : sent ? "送信しました" : "PDFをメールで送る"}
+        </button>
+      </div>
 
-      {/* デバッグ情報の表示（AI が使われているか一目で分かる） */}
-      <section className="text-xs text-gray-500">
-        <pre className="bg-gray-50 p-3 rounded overflow-auto">
-{JSON.stringify(d.__debug, null, 2)}
+      {debug ? (
+        <pre className="mt-6 overflow-auto rounded-md bg-gray-100 p-3 text-xs">
+          {JSON.stringify({ email, report }, null, 2)}
         </pre>
-      </section>
-
-      <button onClick={handleSend} className="rounded bg-black text-white px-5 py-3">
-        PDFをメールで送る
-      </button>
-    </main>
+      ) : null}
+    </div>
   );
 }

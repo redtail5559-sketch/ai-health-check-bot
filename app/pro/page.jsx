@@ -1,4 +1,8 @@
 // app/pro/page.jsx
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 "use client";
 
 import ProFormClient from "./ProFormClient";
