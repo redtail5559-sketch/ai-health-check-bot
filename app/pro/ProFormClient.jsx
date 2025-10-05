@@ -1,5 +1,9 @@
 // app/pro/ProFormClient.jsx
-"use client";
+'use client';
+
+// ここにフォームの状態管理やブラウザ専用処理を書く
+// 既存の実装の先頭に 'use client' を置くだけでOK
+
 
 import { useEffect, useState } from "react";
 
