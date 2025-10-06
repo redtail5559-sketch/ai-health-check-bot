@@ -45,9 +45,7 @@ export default async function Page({ searchParams }) {
         />
         <div>
           <h1 className="text-xl font-semibold">AIヘルス週次プラン</h1>
-          <p className="text-sm text-gray-500">
-            食事とワークアウトの7日メニュー
-          </p>
+          <p className="text-sm text-gray-500">食事とワークアウトの7日メニュー</p>
         </div>
       </div>
 
@@ -66,13 +64,15 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* ✅ グローバルCSSで結果ページだけ不要なh1を非表示に */}
-      <style jsx global>{`
-        /* 結果ページ限定。意図しない重複見出しを非表示に */
-        .pro-result h1.text-2xl.font-bold {
-          display: none !important;
-        }
-      `}</style>
+      {/* ✅ Server ComponentでもOKな通常の<style>でページ限定の非表示を適用 */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            /* 結果ページ限定。意図しない重複見出しを非表示に */
+            .pro-result h1.text-2xl.font-bold { display: none !important; }
+          `,
+        }}
+      />
     </div>
   );
 }
