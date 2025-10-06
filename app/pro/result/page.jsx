@@ -33,13 +33,21 @@ export default async function Page({ searchParams }) {
 
   return (
     // ← 下部固定ナビと被らないように余白を確保
-    <div className="mx-auto max-w-2xl px-4 py-6 pb-28">
+    <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
       {/* ヘッダー */}
       <div className="mb-4 flex items-center gap-3">
-        <Image src="/illustrations/ai-robot.png" alt="AIロボ" width={48} height={48} priority />
+        <Image
+          src="/illustrations/ai-robot.png"
+          alt="AIロボ"
+          width={48}
+          height={48}
+          priority
+        />
         <div>
           <h1 className="text-xl font-semibold">AIヘルス週次プラン</h1>
-          <p className="text-sm text-gray-500">食事とワークアウトの7日メニュー</p>
+          <p className="text-sm text-gray-500">
+            食事とワークアウトの7日メニュー
+          </p>
         </div>
       </div>
 
@@ -49,10 +57,22 @@ export default async function Page({ searchParams }) {
       {/* 画面下部の固定ナビ：重なり対策に pointer-events を調整 */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">
         <div className="pointer-events-auto flex gap-3 rounded-xl border bg-white/90 px-4 py-2 shadow">
-          <Link href="/" className="px-3 py-1.5 rounded-md hover:bg-gray-50">← トップに戻る</Link>
-          <Link href="/pro" className="px-3 py-1.5 rounded-md hover:bg-gray-50">もう一度</Link>
+          <Link href="/" className="px-3 py-1.5 rounded-md hover:bg-gray-50">
+            ← トップに戻る
+          </Link>
+          <Link href="/pro" className="px-3 py-1.5 rounded-md hover:bg-gray-50">
+            もう一度
+          </Link>
         </div>
       </div>
+
+      {/* ✅ グローバルCSSで結果ページだけ不要なh1を非表示に */}
+      <style jsx global>{`
+        /* 結果ページ限定。意図しない重複見出しを非表示に */
+        .pro-result h1.text-2xl.font-bold {
+          display: none !important;
+        }
+      `}</style>
     </div>
   );
 }
