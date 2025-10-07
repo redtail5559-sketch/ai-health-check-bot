@@ -8,27 +8,25 @@ export default function ResultClient({ profile }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
 
+  // 送信系
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState("");
+
   const loadPlan = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // ★ クライアント側でも “完全ノーキャッシュ”
       const res = await fetch("/api/ai-plan?ts=" + Date.now(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profile }),
         cache: "no-store",
-        // Next.js 独自ヒント（あれば使われる）
         next: { revalidate: 0 },
       });
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`API ${res.status}: ${t}`);
-      }
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
       const data = await res.json();
       if (!data?.ok) throw new Error(data?.error || "unknown error");
-
       setPlan(data.plan || null);
     } catch (e) {
       setError(e?.message || String(e));
@@ -39,13 +37,42 @@ export default function ResultClient({ profile }) {
   }, [profile]);
 
   useEffect(() => {
-    // マウント毎に必ず新規取得
     loadPlan();
   }, [loadPlan]);
 
+  const sendPdfEmail = useCallback(async () => {
+    if (!plan) return;
+    setSending(true);
+    setSendMsg("");
+    try {
+      const payload = {
+        to: email && /\S+@\S+\.\S+/.test(email) ? email : undefined, // 空なら既定の送信先(info@...)に
+        subject: "AI健康診断レポート",
+        report: plan,   // ← /api/ai-plan の plan をそのまま渡す
+        profile,        // ← 任意（PDFの先頭に概要として入る）
+      };
+
+      const res = await fetch("/api/pdf-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || `send failed: ${res.status}`);
+      }
+      setSendMsg("PDFを添付して送信しました。メールをご確認ください。");
+    } catch (e) {
+      setSendMsg("送信エラー: " + (e?.message || String(e)));
+    } finally {
+      setSending(false);
+    }
+  }, [email, plan, profile]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      {/* 操作列 */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={loadPlan}
           className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
@@ -53,17 +80,29 @@ export default function ResultClient({ profile }) {
         >
           {loading ? "生成中…" : "メニューを再生成"}
         </button>
+
+        {/* メール送信UI */}
+        <input
+          type="email"
+          placeholder="送信先メール（空なら既定のinfo@に送信）"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border rounded px-3 py-2 min-w-[280px]"
+        />
+        <button
+          onClick={sendPdfEmail}
+          className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+          disabled={!plan || sending}
+        >
+          {sending ? "送信中…" : "PDFをメール送信"}
+        </button>
       </div>
 
-      {error && (
-        <div className="text-red-600 text-sm">
-          エラー: {error}
-        </div>
-      )}
+      {sendMsg && <div className="text-sm">{sendMsg}</div>}
 
-      {!error && !plan && (
-        <div className="text-sm text-gray-600">読み込み中…</div>
-      )}
+      {error && <div className="text-red-600 text-sm">エラー: {error}</div>}
+
+      {!error && !plan && <div className="text-sm text-gray-600">読み込み中…</div>}
 
       {plan && (
         <table className="w-full border border-gray-300 text-sm">
