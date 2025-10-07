@@ -117,7 +117,6 @@ async function callOpenAI({ profile, seed }) {
 プロフィール: ${JSON.stringify(profile || {}, null, 2)}
 `;
 
-  // Chat Completions + json_object は 4o/4o-mini 系でサポート
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.9,
@@ -129,7 +128,6 @@ async function callOpenAI({ profile, seed }) {
     ],
   });
 
-  // 受け取りを寛容にパース
   const text = res.choices?.[0]?.message?.content ?? "";
   let obj = null;
   try {

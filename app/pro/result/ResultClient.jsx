@@ -1,135 +1,100 @@
 // app/pro/result/ResultClient.jsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
-const JP = { mon: "月", tue: "火", wed: "水", thu: "木", fri: "金", sat: "土", sun: "日" };
-const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const DEFAULT_TIPS = [
-  "水分を200ml×6〜8回こまめに",
-  "就寝90分前の入浴で深部体温リズム調整",
-  "タンパク質を毎食20g目安",
-  "よく噛んで20分以上かけて食事",
-  "昼休みに10分散歩で日光を浴びる",
-  "間食は素焼きナッツか高カカオ",
-  "寝る前は画面の光を控えめに",
-];
+export default function ResultClient({ profile }) {
+  const [loading, setLoading] = useState(false);
+  const [plan, setPlan] = useState(null);
+  const [error, setError] = useState(null);
 
-function isReportReady(report) {
-  return !!report && typeof report === "object" && !!report.mon;
-}
-function maskEmail(v = "") {
-  const [name, domain] = v.split("@");
-  if (!name || !domain) return v;
-  return (name.slice(0, 2) + "****") + "@" + domain;
-}
-
-export default function ResultClient({ report = {}, email: initialEmail = "", debug }) {
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [email, setEmail] = useState(initialEmail); // ← 表示はせず、内部だけで保持
-
-  // 1) 初回：クエリ > localStorage の順で採用（レポート画面には入力欄なし）
-  useEffect(() => {
-    if (initialEmail) {
-      setEmail(initialEmail);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("userEmail", initialEmail);
-      }
-      return;
-    }
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem("userEmail");
-      if (saved) setEmail(saved);
-    }
-  }, [initialEmail]);
-
-  // 2) 「送信先を変更」クリック時だけダイアログで入力
-  const changeEmail = () => {
-    if (typeof window === "undefined") return;
-    const v = window.prompt("送信先メールアドレスを入力してください", email || "")?.trim() || "";
-    if (!v) return;
-    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-    if (!ok) {
-      alert("メールアドレスの形式が正しくありません。");
-      return;
-    }
-    setEmail(v);
-    window.localStorage.setItem("userEmail", v);
-  };
-
-  const sendPdf = async () => {
-    if (!isReportReady(report)) {
-      alert("レポートを読み込み中です。数秒待ってからもう一度お試しください。");
-      return;
-    }
-    const to = (email || "").trim();
-    if (!to) {
-      // 未設定ならまず設定してから
-      changeEmail();
-      if (!(window?.localStorage.getItem("userEmail") || "").trim()) return;
-    }
-    const dest = (email || window?.localStorage.getItem("userEmail") || "").trim();
-    if (!dest) return;
-
-    setSending(true);
+  const loadPlan = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/pdf-email", {
+      // ★ クライアント側でも “完全ノーキャッシュ”
+      const res = await fetch("/api/ai-plan?ts=" + Date.now(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: dest, report }),
+        body: JSON.stringify({ profile }),
+        cache: "no-store",
+        // Next.js 独自ヒント（あれば使われる）
+        next: { revalidate: 0 },
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "送信に失敗しました");
-      setSent(true);
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`API ${res.status}: ${t}`);
+      }
+      const data = await res.json();
+      if (!data?.ok) throw new Error(data?.error || "unknown error");
+
+      setPlan(data.plan || null);
     } catch (e) {
-      console.error("[pdf-email] send error:", e);
-      alert(`送信エラー: ${e?.message || String(e)}`);
+      setError(e?.message || String(e));
+      setPlan(null);
     } finally {
-      setSending(false);
+      setLoading(false);
     }
-  };
+  }, [profile]);
+
+  useEffect(() => {
+    // マウント毎に必ず新規取得
+    loadPlan();
+  }, [loadPlan]);
 
   return (
     <div className="space-y-4">
-      {/* 本文：曜日ごとのカード */}
-      {DAYS.map((d, idx) => {
-        const v = report?.[d] || {};
-        const tips = v.tips ?? DEFAULT_TIPS[idx % DEFAULT_TIPS.length];
-        return (
-          <div key={d} className="rounded-lg border bg-white p-4">
-            <div className="mb-2 font-semibold">{JP[d]}曜日</div>
-            <div className="space-y-1 text-sm">
-              <div><span className="font-semibold">朝食：</span>{v.breakfast || "-"}</div>
-              <div><span className="font-semibold">昼食：</span>{v.lunch || "-"}</div>
-              <div><span className="font-semibold">夕食：</span>{v.dinner || "-"}</div>
-              <div><span className="font-semibold">運動：</span>{v.workout || "-"}</div>
-              <div className="text-xs text-gray-400">Tips: {tips}</div>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* 送信操作：メール欄は出さず、保存済みアドレスを使用 */}
-      <div className="mb-28 mt-6 flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:justify-end">
-        <div className="text-xs text-gray-500 sm:mr-2">
-          送信先：{email ? maskEmail(email) : "（未設定）"}
-          <button
-            type="button"
-            onClick={changeEmail}
-            className="ml-2 underline hover:opacity-80"
-          >
-            変更
-          </button>
-        </div>
+      <div className="flex items-center gap-2">
         <button
-          onClick={sendPdf}
-          disabled={sending}
-          className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
-          title={!email ? "クリックして送信先を設定してください" : ""}
+          onClick={loadPlan}
+          className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
+          disabled={loading}
         >
-          {sending ? "送信中…" : sent ? "送信しました" : "PDFをメールで送る"}
+          {loading ? "生成中…" : "メニューを再生成"}
         </button>
       </div>
-    );
+
+      {error && (
+        <div className="text-red-600 text-sm">
+          エラー: {error}
+        </div>
+      )}
+
+      {!error && !plan && (
+        <div className="text-sm text-gray-600">読み込み中…</div>
+      )}
+
+      {plan && (
+        <table className="w-full border border-gray-300 text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2">曜日</th>
+              <th className="border p-2">朝食</th>
+              <th className="border p-2">昼食</th>
+              <th className="border p-2">夕食</th>
+              <th className="border p-2">運動</th>
+              <th className="border p-2">Tips</th>
+            </tr>
+          </thead>
+          <tbody>
+            {["mon","tue","wed","thu","fri","sat","sun"].map((k) => {
+              const jp = {mon:"月",tue:"火",wed:"水",thu:"木",fri:"金",sat:"土",sun:"日"}[k];
+              const d = plan[k] || {};
+              return (
+                <tr key={k}>
+                  <td className="border p-2 text-center">{jp}</td>
+                  <td className="border p-2">{d.breakfast}</td>
+                  <td className="border p-2">{d.lunch}</td>
+                  <td className="border p-2">{d.dinner}</td>
+                  <td className="border p-2">{d.workout}</td>
+                  <td className="border p-2">{d.tips}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }
