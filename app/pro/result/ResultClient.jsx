@@ -131,12 +131,5 @@ export default function ResultClient({ report = {}, email: initialEmail = "", de
           {sending ? "送信中…" : sent ? "送信しました" : "PDFをメールで送る"}
         </button>
       </div>
-
-      {debug ? (
-        <pre className="mt-6 overflow-auto rounded-md bg-gray-100 p-3 text-xs">
-          {JSON.stringify({ email, report }, null, 2)}
-        </pre>
-      ) : null}
-    </div>
-  );
+    );
 }
