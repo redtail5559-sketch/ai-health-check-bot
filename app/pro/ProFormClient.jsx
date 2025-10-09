@@ -1,7 +1,11 @@
 // app/pro/ProFormClient.jsx
-"use client";
+'use client';
 
-import { useState } from "react";
+// ここにフォームの状態管理やブラウザ専用処理を書く
+// 既存の実装の先頭に 'use client' を置くだけでOK
+
+
+import { useEffect, useState } from "react";
 
 export default function ProFormClient() {
   const [loading, setLoading] = useState(false);
@@ -18,27 +22,61 @@ export default function ProFormClient() {
     email: "",
   });
 
-  const onChange = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  // ---- ここが新規：localStorage からメールをプリセット ----
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("userEmail");
+    if (saved) {
+      setForm((s) => ({ ...s, email: saved }));
+    }
+  }, []);
+
+  // 共通 onChange（メールのときだけ localStorage も更新）
+  const onChange = (k) => (e) => {
+    const v = e.target.value;
+    setForm((s) => ({ ...s, [k]: v }));
+
+    if (k === "email" && typeof window !== "undefined") {
+      const trimmed = v.trim();
+      if (trimmed) window.localStorage.setItem("userEmail", trimmed);
+      else window.localStorage.removeItem("userEmail");
+    }
+  };
+
+  // メール欄の onBlur でも確実に保存（空なら削除）
+  const onEmailBlur = () => {
+    if (typeof window === "undefined") return;
+    const trimmed = (form.email || "").trim();
+    if (trimmed) window.localStorage.setItem("userEmail", trimmed);
+    else window.localStorage.removeItem("userEmail");
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
+
+      // ---- ここも強化：送信直前にメールを確定保存 ----
+      if (typeof window !== "undefined") {
+        const trimmed = (form.email || "").trim();
+        if (trimmed) window.localStorage.setItem("userEmail", trimmed);
+        else window.localStorage.removeItem("userEmail");
+      }
+
       // 復旧用に保存
       sessionStorage.setItem("proForm", JSON.stringify(form));
 
-     const res = await fetch("/api/checkout-session", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(form),
-});
-if (!res.ok) {
-  const t = await res.text();
-  throw new Error(t || "failed to create checkout session");
-}
-const { url } = await res.json();
-window.location.href = url;
-
+      const res = await fetch("/api/checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || "failed to create checkout session");
+      }
+      const { url } = await res.json();
+      window.location.href = url;
     } catch (err) {
       console.error(err);
       alert("決済画面を開けませんでした。詳細: " + (err.message || "unknown"));
@@ -173,6 +211,7 @@ window.location.href = url;
           placeholder="購入メール（送付先）*"
           value={form.email}
           onChange={onChange("email")}
+          onBlur={onEmailBlur}
           className="border p-3 rounded"
           required
         />

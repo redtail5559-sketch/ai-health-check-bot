@@ -1,140 +1,139 @@
 // app/pro/result/ResultClient.jsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 
-export default function ResultClient() {
-  const sp = useSearchParams();
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+export default function ResultClient({ profile }) {
+  const [loading, setLoading] = useState(false);
+  const [plan, setPlan] = useState(null);
+  const [error, setError] = useState(null);
+
+  // 送信系
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState("");
+
+  const loadPlan = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/ai-plan?ts=" + Date.now(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile }),
+        cache: "no-store",
+        next: { revalidate: 0 },
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      if (!data?.ok) throw new Error(data?.error || "unknown error");
+      setPlan(data.plan || null);
+    } catch (e) {
+      setError(e?.message || String(e));
+      setPlan(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [profile]);
 
   useEffect(() => {
-    const sid = sp.get("sessionId") || "";
-    (async () => {
-      try {
-        const r = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}&t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        const j = await r.json();
-        if (!j.ok) throw new Error(j.error || "failed");
-        setState({ loading: false, error: "", data: j.data });
-      } catch (e) {
-        setState({ loading: false, error: e.message, data: null });
-      }
-    })();
-  }, [sp]);
+    loadPlan();
+  }, [loadPlan]);
 
-  if (state.loading) return <main className="p-6">レポート生成中…</main>;
-  if (state.error)   return <main className="p-6 text-red-500">エラー: {state.error}</main>;
-
-  const d = state.data;
-
-  const buildTextReport = () => {
-    const lines = [
-      "AI健康レポート",
-      "",
-      `BMI: ${d.bmi ?? "-"}`,
-      `概要: ${d.overview ?? "-"}`,
-      "",
-      "【1週間プラン】",
-      ...(d.weekPlan || []).map((w) =>
-        [
-          `■ ${w.day}`,
-          `  朝: ${w.meals?.breakfast ?? "-"}`,
-          `  昼: ${w.meals?.lunch ?? "-"}`,
-          `  夜: ${w.meals?.dinner ?? "-"}`,
-          `  間: ${w.meals?.snack ?? "-"}`,
-          `  運動: ${w.workout?.name ?? "-"} ${w.workout?.minutes ?? "-"}分`,
-        ].join("\n")
-      ),
-    ];
-    return lines.join("\n");
-  };
-
-  const handleSend = async () => {
+  const sendPdfEmail = useCallback(async () => {
+    if (!plan) return;
+    setSending(true);
+    setSendMsg("");
     try {
-      let to = d.email;
-      if (!to) {
-        to = window.prompt("送信先メールアドレスを入力してください") || "";
-      }
-      if (!to) {
-        alert("メールアドレスが空です");
-        return;
-      }
-      const res = await fetch(`/api/pdf-email?t=${Date.now()}&to=${encodeURIComponent(to)}`, { // ← クエリにも付与
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  cache: "no-store",
-  body: JSON.stringify({
-    to,                                // ← ボディにも入れる（保険で二重）
-    subject: "AI健康レポート",
-    report: buildTextReport(),
-  }),
-});
-const json = await res.json();
-if (!res.ok || !json?.ok) {
-  alert("送信エラー詳細:\n" + JSON.stringify(json, null, 2));
-  return;
-}
-alert("メール送信しました。受信ボックスをご確認ください。");
+      const payload = {
+        to: email && /\S+@\S+\.\S+/.test(email) ? email : undefined, // 空なら既定の送信先(info@...)に
+        subject: "AI健康診断レポート",
+        report: plan,   // ← /api/ai-plan の plan をそのまま渡す
+        profile,        // ← 任意（PDFの先頭に概要として入る）
+      };
 
+      const res = await fetch("/api/pdf-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || `send failed: ${res.status}`);
+      }
+      setSendMsg("PDFを添付して送信しました。メールをご確認ください。");
     } catch (e) {
-      alert(`エラー: ${e.message}`);
+      setSendMsg("送信エラー: " + (e?.message || String(e)));
+    } finally {
+      setSending(false);
     }
-  };
+  }, [email, plan, profile]);
 
   return (
-    <main className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">AI健康診断bot　診断レポート</h1>
+    <div className="space-y-4">
+      {/* 操作列 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={loadPlan}
+          className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
+          disabled={loading}
+        >
+          {loading ? "生成中…" : "メニューを再生成"}
+        </button>
 
-      <section className="border rounded-lg p-4 bg-white">
-        <h2 className="font-semibold mb-2">プロフィール</h2>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-700">
-          <div>身長: {d.profile.heightCm} cm</div>
-          <div>体重: {d.profile.weightKg} kg</div>
-          <div>年齢: {d.profile.age}</div>
-          <div>性別: {d.profile.sex}</div>
-          <div>運動量: {d.profile.activity}</div>
-          <div>睡眠: {d.profile.sleep}</div>
-          <div>飲酒: {d.profile.drink}</div>
-          <div>喫煙: {d.profile.smoke}</div>
-          <div>食事傾向: {d.profile.diet}</div>
-          <div>送付先メール: {d.email || "(未設定)"}</div>
-        </div>
-      </section>
+        {/* メール送信UI */}
+        <input
+          type="email"
+          placeholder="送信先メール（空なら既定のinfo@に送信）"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border rounded px-3 py-2 min-w-[280px]"
+        />
+        <button
+          onClick={sendPdfEmail}
+          className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+          disabled={!plan || sending}
+        >
+          {sending ? "送信中…" : "PDFをメール送信"}
+        </button>
+      </div>
 
-      <section className="border rounded-lg p-4 bg-white">
-        <h2 className="font-semibold mb-2">総括</h2>
-        <p className="text-gray-800 whitespace-pre-wrap">{d.overview}</p>
-      </section>
+      {sendMsg && <div className="text-sm">{sendMsg}</div>}
 
-      <section className="space-y-3 mt-6">
-        <h2 className="text-lg font-semibold">1週間の食事・運動プラン</h2>
-        <div className="space-y-3">
-          {(d.weekPlan || []).map((w, i) => (
-            <div key={i} className="border p-3 rounded">
-              <h3 className="font-medium">{w.day}</h3>
-              <p>朝食: {w.meals?.breakfast}</p>
-              <p>昼食: {w.meals?.lunch}</p>
-              <p>夕食: {w.meals?.dinner}</p>
-              <p>間食: {w.meals?.snack}</p>
-              <p>運動: {w.workout?.name} {w.workout?.minutes}分</p>
-              <p className="text-sm text-gray-500">Tips: {w.workout?.tips}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {error && <div className="text-red-600 text-sm">エラー: {error}</div>}
 
-      {/* デバッグ情報の表示（AI が使われているか一目で分かる） */}
-      <section className="text-xs text-gray-500">
-        <pre className="bg-gray-50 p-3 rounded overflow-auto">
-{JSON.stringify(d.__debug, null, 2)}
-        </pre>
-      </section>
+      {!error && !plan && <div className="text-sm text-gray-600">読み込み中…</div>}
 
-      <button onClick={handleSend} className="rounded bg-black text-white px-5 py-3">
-        PDFをメールで送る
-      </button>
-    </main>
+      {plan && (
+        <table className="w-full border border-gray-300 text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2">曜日</th>
+              <th className="border p-2">朝食</th>
+              <th className="border p-2">昼食</th>
+              <th className="border p-2">夕食</th>
+              <th className="border p-2">運動</th>
+              <th className="border p-2">Tips</th>
+            </tr>
+          </thead>
+          <tbody>
+            {["mon","tue","wed","thu","fri","sat","sun"].map((k) => {
+              const jp = {mon:"月",tue:"火",wed:"水",thu:"木",fri:"金",sat:"土",sun:"日"}[k];
+              const d = plan[k] || {};
+              return (
+                <tr key={k}>
+                  <td className="border p-2 text-center">{jp}</td>
+                  <td className="border p-2">{d.breakfast}</td>
+                  <td className="border p-2">{d.lunch}</td>
+                  <td className="border p-2">{d.dinner}</td>
+                  <td className="border p-2">{d.workout}</td>
+                  <td className="border p-2">{d.tips}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
