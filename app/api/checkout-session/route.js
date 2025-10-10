@@ -10,17 +10,22 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
+    // 必須チェック
     const required = ["heightCm","weightKg","age","sex","activity","sleep","drink","smoke","diet","email"];
     for (const k of required) {
       if (!body?.[k]) return new NextResponse(`missing field: ${k}`, { status: 400 });
     }
 
+    // 呼び出し元のオリジンを推定
     const h = req.headers;
     const origin =
       h.get("origin") ||
       (h.get("referer") ? new URL(h.get("referer")).origin : null) ||
       process.env.NEXT_PUBLIC_BASE_URL ||
       "https://ai-health-check-bot.vercel.app";
+
+    // ✅ 成功時の戻り先に email をクエリで付与して /pro/result へ
+    const successUrl = `${origin}/pro/result?email=${encodeURIComponent(body.email)}&sid={CHECKOUT_SESSION_ID}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -35,11 +40,13 @@ export async function POST(req) {
           quantity: 1,
         },
       ],
-      // ★ここがポイント：Checkout のメール欄に自動入力
+      // Checkout 画面のメール欄に自動入力
       customer_email: body.email,
 
-      success_url: `${origin}/pro/success?sid={CHECKOUT_SESSION_ID}`,
+      // ここを差し替え
+      success_url: successUrl,
       cancel_url: `${origin}/pro/cancel`,
+
       client_reference_id: body.email || undefined,
       metadata: {
         heightCm: String(body.heightCm ?? ""),
@@ -55,9 +62,10 @@ export async function POST(req) {
       },
     });
 
-    return NextResponse.json({ url: session.url }, { status: 200 });
+    // ✅ フロントが扱いやすいように必ずJSONを返す
+    return NextResponse.json({ ok: true, url: session.url }, { status: 200 });
   } catch (e) {
     console.error("[checkout-session] error:", e);
-    return new NextResponse(String(e?.message || e), { status: 400 });
+    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 400 });
   }
 }
