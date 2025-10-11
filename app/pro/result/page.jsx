@@ -1,18 +1,16 @@
 // app/pro/result/page.jsx
-export const dynamic = 'force-dynamic';
+import Image from "next/image";
+import Link from "next/link";
+import ResultClient from "./ResultClient";
+
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-import Image from "next/image";
-import Link from "next/link";
+export default function Page({ searchParams }) {
+  const email =
+    typeof searchParams?.email === "string" ? searchParams.email : "";
 
-import ResultClient from "./ResultClient";
-
-export default async function Page({ searchParams }) {
-  // ✅ 決済成功URLから付与されるクエリを受け取る（SSRでは取得しない）
-  const email = searchParams?.email || "";
-   return <ResultClient email={email} />;  // ← report は渡さない
-}
   return (
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
       {/* ヘッダー */}
@@ -30,7 +28,8 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* ✅ report は渡さない → クライアント側で必ず取得＆乱数・キャッシュ無効が効く */}
+      {/* メイン（メール初期化は ResultClient 側で実施） */}
+      {/* report は渡さない（クライアント側で取得） */}
       <ResultClient email={email} />
 
       {/* 下部ナビ */}
@@ -45,6 +44,7 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
+      {/* 一時対処：上部見出し非表示（既存仕様どおり） */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
