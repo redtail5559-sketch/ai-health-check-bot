@@ -5,34 +5,15 @@ export const runtime = "nodejs";
 
 import Image from "next/image";
 import Link from "next/link";
+
 import ResultClient from "./ResultClient";
-import { headers } from "next/headers";
-
-function resolveBaseUrl() {
-  const h = headers();
-  const proto = h.get("x-forwarded-proto") || "http";
-  const host = h.get("x-forwarded-host") || h.get("host");
-  return `${proto}://${host}`;
-}
-
-async function getPlan(profile = {}) {
-  const baseUrl = resolveBaseUrl();
-  const res = await fetch(`${baseUrl}/api/ai-plan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profile }),
-    cache: "no-store",
-  });
-  const json = await res.json().catch(() => ({}));
-  return json?.plan || {};
-}
 
 export default async function Page({ searchParams }) {
+  // ✅ 決済成功URLから付与されるクエリを受け取る（SSRでは取得しない）
   const email = searchParams?.email || "";
-  const plan = await getPlan({});
-
+   return <ResultClient email={email} />;  // ← report は渡さない
+}
   return (
-    // ← 下部固定ナビと被らないように余白を確保
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
       {/* ヘッダー */}
       <div className="mb-4 flex items-center gap-3">
@@ -49,10 +30,10 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* 本文 */}
-      <ResultClient report={plan} email={email} />
+      {/* ✅ report は渡さない → クライアント側で必ず取得＆乱数・キャッシュ無効が効く */}
+      <ResultClient email={email} />
 
-      {/* 画面下部の固定ナビ：重なり対策に pointer-events を調整 */}
+      {/* 下部ナビ */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">
         <div className="pointer-events-auto flex gap-3 rounded-xl border bg-white/90 px-4 py-2 shadow">
           <Link href="/" className="px-3 py-1.5 rounded-md hover:bg-gray-50">
@@ -64,11 +45,9 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* ✅ Server ComponentでもOKな通常の<style>でページ限定の非表示を適用 */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            /* 結果ページ限定。意図しない重複見出しを非表示に */
             .pro-result h1.text-2xl.font-bold { display: none !important; }
           `,
         }}
