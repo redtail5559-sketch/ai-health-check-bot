@@ -8,8 +8,9 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 export default function Page({ searchParams }) {
-  const email =
-    typeof searchParams?.email === "string" ? searchParams.email : "";
+  // ここでサーバー側で確実に email を読む
+  const emailParam =
+    typeof searchParams?.email === "string" ? searchParams.email.trim() : "";
 
   return (
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
@@ -24,13 +25,14 @@ export default function Page({ searchParams }) {
         />
         <div>
           <h1 className="text-xl font-semibold">AIヘルス週次プラン</h1>
-          <p className="text-sm text-gray-500">食事とワークアウトの7日メニュー</p>
+          <p className="text-sm text-gray-500">
+            食事とワークアウトの7日メニュー
+          </p>
         </div>
       </div>
 
-      {/* メイン（メール初期化は ResultClient 側で実施） */}
-      {/* report は渡さない（クライアント側で取得） */}
-      <ResultClient email={email} />
+      {/* ✅ email を props として確実に渡す */}
+      <ResultClient email={emailParam} />
 
       {/* 下部ナビ */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">
@@ -44,7 +46,7 @@ export default function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* 一時対処：上部見出し非表示（既存仕様どおり） */}
+      {/* 見出し非表示（既存仕様どおり） */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
