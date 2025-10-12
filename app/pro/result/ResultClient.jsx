@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+useEffect(() => {
+  console.log("=== DEBUG EMAIL ===");
+  console.log("window.location.href:", typeof window !== "undefined" ? window.location.href : "(no window)");
+  console.log("props.email:", propsEmail);
+  console.log("sessionStorage.result.email:", typeof window !== "undefined" ? sessionStorage.getItem("result.email") : "(no window)");
+}, []);
+
 export default function ResultClient({ email: propsEmail = "" }) {
   const [email, setEmail] = useState("");
 
