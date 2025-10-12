@@ -1,5 +1,5 @@
-﻿// app/api/_health/route.js
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
+
 export async function GET(req) {
   const url = new URL(req.url);
   return new Response(
