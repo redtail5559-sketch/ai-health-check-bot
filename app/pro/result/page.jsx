@@ -8,12 +8,42 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 export default function Page({ searchParams }) {
-  // ここでサーバー側で確実に email を読む
   const emailParam =
     typeof searchParams?.email === "string" ? searchParams.email.trim() : "";
 
+  // SSRデバッグ（必ず出る帯）
+  const debugBanner = (
+    <div
+      style={{
+        position: "fixed",
+        insetInline: 0,
+        top: 0,
+        zIndex: 9999,
+        background: "#e0f2fe",
+        color: "#0369a1",
+        fontSize: 12,
+        padding: "6px 10px",
+        borderBottom: "1px solid #bae6fd",
+      }}
+    >
+      <strong>SSR DEBUG</strong>{" "}
+      <span>emailParam={emailParam || "(empty)"} </span>{" "}
+      <span> | commit={(process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0,7) || "(local)"} </span>{" "}
+      <span> | route=/pro/result </span>
+      <style
+        // 8秒で自動非表示
+        dangerouslySetInnerHTML={{
+          __html:
+            "@keyframes fadeOut{to{opacity:0;visibility:hidden}} div[style*='fixed']{animation:fadeOut 1s ease 7s forwards}",
+        }}
+      />
+    </div>
+  );
+
   return (
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
+      {debugBanner}
+
       {/* ヘッダー */}
       <div className="mb-4 flex items-center gap-3">
         <Image
@@ -25,13 +55,11 @@ export default function Page({ searchParams }) {
         />
         <div>
           <h1 className="text-xl font-semibold">AIヘルス週次プラン</h1>
-          <p className="text-sm text-gray-500">
-            食事とワークアウトの7日メニュー
-          </p>
+          <p className="text-sm text-gray-500">食事とワークアウトの7日メニュー</p>
         </div>
       </div>
 
-      {/* ✅ email を props として確実に渡す */}
+      {/* ここで props として確実に渡す */}
       <ResultClient email={emailParam} />
 
       {/* 下部ナビ */}
@@ -46,12 +74,10 @@ export default function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* 見出し非表示（既存仕様どおり） */}
+      {/* 見出し非表示（既存仕様） */}
       <style
         dangerouslySetInnerHTML={{
-          __html: `
-            .pro-result h1.text-2xl.font-bold { display: none !important; }
-          `,
+          __html: `.pro-result h1.text-2xl.font-bold { display:none !important; }`,
         }}
       />
     </div>
