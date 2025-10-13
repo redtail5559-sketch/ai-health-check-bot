@@ -11,7 +11,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("session_id") || searchParams.get("id");
+    // 両対応
+    const id =
+      searchParams.get("session_id") ||
+      searchParams.get("sessionId") ||
+      searchParams.get("id");
     if (!id) {
       return NextResponse.json({ ok: false, error: "session_id is required" }, { status: 400 });
     }

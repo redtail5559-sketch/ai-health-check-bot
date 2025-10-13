@@ -1,4 +1,3 @@
-// app/pro/result/ResultClient.jsx
 "use client";
 import { useEffect, useState } from "react";
 
@@ -14,26 +13,28 @@ export default function ResultClient({ email: propsEmail = "" }) {
     try { sessionStorage.setItem("result.email", initial); } catch {}
   }, [propsEmail]);
 
-  // ★ 追加：session_id から復元
+  // ★ 追加：session_id / sessionId から復元
   useEffect(() => {
-    if (email) return; // 既に入っていれば不要
+    if (email) return;
     if (typeof window === "undefined") return;
 
     const usp = new URLSearchParams(window.location.search);
-    const sid = usp.get("session_id");
+    const sid = usp.get("session_id") || usp.get("sessionId"); // ← 両対応
     if (!sid) return;
 
     (async () => {
       try {
-        const res = await fetch(`/api/checkout-session-lookup?session_id=${encodeURIComponent(sid)}`, { cache: "no-store" });
-        const data = await res.json();
+        const res = await fetch(
+          `/api/checkout-session-lookup?session_id=${encodeURIComponent(sid)}`,
+          { cache: "no-store" }
+        );
+        const data = await res.json().catch(() => ({}));
         const found = (data?.email || "").trim();
         if (found) {
           setEmail(found);
           try { sessionStorage.setItem("result.email", found); } catch {}
         }
       } catch (e) {
-        // 失敗しても静かに無視（手入力できるように）
         console.error("session lookup failed", e);
       }
     })();
