@@ -14,25 +14,6 @@ export default function Page({ searchParams }) {
 
   return (
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
-    //  {/* SSRデバッグ帯 */}
-    //  <div
-    //    style={{
-    //      position: "fixed",
-    //      top: 0,
-    //      left: 0,
-    //      right: 0,
-    //      zIndex: 9999,
-    //      background: "#e0f2fe",
-    //      color: "#0369a1",
-    //      fontSize: 12,
-    //      padding: "6px 10px",
-    //      borderBottom: "1px solid #bae6fd",
-    //    }}
-    //  >
-    //    <strong>SSR DEBUG</strong>{" "}
-    //    emailParam: <code>{emailParam || "(empty)"}</code>
-    //  </div>
-
       {/* ヘッダー */}
       <div className="mb-4 flex items-center gap-3">
         <Image
@@ -44,19 +25,17 @@ export default function Page({ searchParams }) {
         />
         <div>
           <h1 className="text-xl font-semibold">AIヘルス週次プラン</h1>
-          <p className="text-sm text-gray-500">
-            食事とワークアウトの7日メニュー
-          </p>
+          <p className="text-sm text-gray-500">食事とワークアウトの7日メニュー</p>
         </div>
       </div>
 
-      {/* ✅ emailParamをpropsとして確実に渡す */}
+      {/* ✅ emailParam を props として確実に渡す */}
       <ResultClient email={emailParam} />
-      
-      // app/pro/result/page.jsx の return 内（<ResultClient email={emailParam} /> の直後）
-<script
-  dangerouslySetInnerHTML={{
-    __html: `
+
+      {/* 強制ブート: URL / session_id からメールを復元して #email に代入 */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
 (function(){
   function log(m){ try{ console.log("[result-boot]", m); }catch(e){} }
   try{
@@ -65,21 +44,20 @@ export default function Page({ searchParams }) {
     var sid = (usp.get("session_id") || usp.get("sessionId") || "").trim();
     var SSKEY = "result.email";
 
-    // まず sessionStorage を候補に
+    // sessionStorageの既存値も候補に
     if(!email){
       try{ email = (sessionStorage.getItem(SSKEY) || "").trim(); }catch(e){}
     }
 
     function setEmail(val){
-      if(!val) { log("no email resolved"); return; }
+      if(!val){ log("no email resolved"); return; }
       try{ sessionStorage.setItem(SSKEY, val); }catch(e){}
       var input = document.getElementById("email");
-      if (input) {
+      if(input){
         input.value = val;
-        // React の controlled input に伝える
         try{ input.dispatchEvent(new Event("input", { bubbles: true })); }catch(e){}
         log("set email: " + val);
-      } else {
+      }else{
         log("input#email not found");
       }
     }
@@ -112,9 +90,9 @@ export default function Page({ searchParams }) {
     console.error("[result-boot] fatal", e);
   }
 })();
-    `,
-  }}
-/>
+          `,
+        }}
+      />
 
       {/* 下部ナビ */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">
