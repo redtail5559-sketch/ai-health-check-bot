@@ -1,71 +1,58 @@
 // app/api/checkout-session/route.js
-export const runtime = "nodejs";
-
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+export const runtime = "nodejs";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
+
+// ここでサーバー側のフォールバック価格IDを読む（Vercelに設定）
+const DEFAULT_PRICE_ID =
+  process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || "";
+
+function originFromHeaders() {
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "https";
+  return host ? `${proto}://${host}` : process.env.NEXT_PUBLIC_SITE_URL || "";
+}
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const { priceId, email } = await req.json();
 
-    // 必須チェック
-    const required = ["heightCm","weightKg","age","sex","activity","sleep","drink","smoke","diet","email"];
-    for (const k of required) {
-      if (!body?.[k]) return new NextResponse(`missing field: ${k}`, { status: 400 });
+    // priceId が来ていなければ環境変数のデフォルトを使用
+    const resolvedPriceId = (priceId || DEFAULT_PRICE_ID || "").trim();
+    if (!resolvedPriceId) {
+      return NextResponse.json(
+        { ok: false, error: "priceId is required (set STRIPE_PRICE_ID on server or pass in body)" },
+        { status: 400 }
+      );
     }
 
-    // 呼び出し元のオリジンを推定
-    const h = req.headers;
-    const origin =
-      h.get("origin") ||
-      (h.get("referer") ? new URL(h.get("referer")).origin : null) ||
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      "https://ai-health-check-bot.vercel.app";
-
-    // ✅ 成功時の戻り先に email をクエリで付与して /pro/result へ
-    const successUrl = `${origin}/pro/result?email=${encodeURIComponent(body.email)}&sid={CHECKOUT_SESSION_ID}`;
+    const origin = originFromHeaders();
+    const safeEmail = typeof email === "string" ? email.trim() : "";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "jpy",
-            product_data: { name: "AI健康診断レポート (PDF付)" },
-            unit_amount: 500, // ¥500
-          },
-          quantity: 1,
-        },
-      ],
-      // Checkout 画面のメール欄に自動入力
-      customer_email: body.email,
-
-      // ここを差し替え
-      success_url: successUrl,
-      cancel_url: `${origin}/pro/cancel`,
-
-      client_reference_id: body.email || undefined,
-      metadata: {
-        heightCm: String(body.heightCm ?? ""),
-        weightKg: String(body.weightKg ?? ""),
-        age: String(body.age ?? ""),
-        sex: String(body.sex ?? ""),
-        activity: String(body.activity ?? ""),
-        sleep: String(body.sleep ?? ""),
-        drink: String(body.drink ?? ""),
-        smoke: String(body.smoke ?? ""),
-        diet: String(body.diet ?? ""),
-        email: String(body.email ?? ""),
-      },
+      line_items: [{ price: resolvedPriceId, quantity: 1 }],
+      // ★ 決済成功後にメールをクエリで持って /pro/result へ戻す
+      success_url: `${origin}/pro/result?email=${encodeURIComponent(
+        safeEmail
+      )}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pro`,
+      ...(safeEmail ? { customer_email: safeEmail } : {}),
+      allow_promotion_codes: true,
     });
 
-    // ✅ フロントが扱いやすいように必ずJSONを返す
-    return NextResponse.json({ ok: true, url: session.url }, { status: 200 });
+    return NextResponse.json({ ok: true, id: session.id, url: session.url });
   } catch (e) {
-    console.error("[checkout-session] error:", e);
-    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: String(e?.message || e) },
+      { status: 500 }
+    );
   }
 }

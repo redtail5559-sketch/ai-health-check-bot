@@ -4,7 +4,6 @@
 // ここにフォームの状態管理やブラウザ専用処理を書く
 // 既存の実装の先頭に 'use client' を置くだけでOK
 
-
 import { useEffect, useState } from "react";
 
 export default function ProFormClient() {
@@ -56,27 +55,60 @@ export default function ProFormClient() {
     try {
       setLoading(true);
 
-      // ---- ここも強化：送信直前にメールを確定保存 ----
+      // ---- 送信直前にメールを確定保存 ----
       if (typeof window !== "undefined") {
         const trimmed = (form.email || "").trim();
-        if (trimmed) window.localStorage.setItem("userEmail", trimmed);
-        else window.localStorage.removeItem("userEmail");
+       if (trimmed) {
+       // ① localStorage（将来のフォーム再訪問用）
+          window.localStorage.setItem("userEmail", trimmed);
+          // ② sessionStorage（/pro/result 側の復元用）
+          try { sessionStorage.setItem("result.email", trimmed); } catch {}
+        } else {
+          window.localStorage.removeItem("userEmail");
+          try { sessionStorage.removeItem("result.email"); } catch {}
+        } 
       }
 
       // 復旧用に保存
       sessionStorage.setItem("proForm", JSON.stringify(form));
 
+      // ✅ Checkout セッション作成APIに email を必ず渡す
+      //   サーバ側(app/api/checkout-session/route.js または app/api/checkout/route.js)で
+      //   success_url を `${origin}/pro/result?email=${encodeURIComponent(email)}...`
+      //   に組み立てるために必要
+      const payload = {
+        email: (form.email || "").trim(),  // << これが超重要
+        // priceId など、利用しているならここに付ける
+        // priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID などはクライアントでは直接読めないので
+        // サーバ側のデフォルト(ENV)を使う実装にしておくのが安全です
+      };
+
       const res = await fetch("/api/checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
         const t = await res.text();
         throw new Error(t || "failed to create checkout session");
       }
-      const { url } = await res.json();
-      window.location.href = url;
+
+      // APIは { ok: true, url: session.url } を返す想定
+      const { url, sessionId, error } = await res.json().catch(() => ({}));
+      if (error) throw new Error(error);
+
+      if (url) {
+        // StripeのHosted Checkoutページへ遷移
+        window.location.href = url;
+      } else if (sessionId) {
+        // sessionIdでredirectToCheckoutする実装の場合（拡張用）
+        // const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PK);
+        // await stripe.redirectToCheckout({ sessionId });
+        throw new Error("checkout URL not returned");
+      } else {
+        throw new Error("invalid checkout response");
+      }
     } catch (err) {
       console.error(err);
       alert("決済画面を開けませんでした。詳細: " + (err.message || "unknown"));
@@ -217,6 +249,7 @@ export default function ProFormClient() {
         />
 
         <button
+          type="submit"                // 念のため明示
           disabled={loading}
           className="rounded bg-black text-white px-5 py-3 disabled:opacity-60"
         >
