@@ -16,15 +16,40 @@ function originFromHeaders() {
   return host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_ORIGIN || "");
 }
 
+// ---- 診断用: GET で現在の値を返す ----
+export async function GET() {
+  const envPrice = (process.env.STRIPE_PRICE_ID || "").trim();
+  const keyMode = (process.env.STRIPE_SECRET_KEY || "").startsWith("sk_test_")
+    ? "test"
+    : (process.env.STRIPE_SECRET_KEY ? "live" : "(unset)");
+
+  let priceInfo = null;
+  try {
+    if (envPrice) {
+      const p = await stripe.prices.retrieve(envPrice);
+      priceInfo = { id: p.id, livemode: p.livemode, currency: p.currency };
+    }
+  } catch (e) {
+    priceInfo = { error: String(e?.message || e) };
+  }
+
+  return NextResponse.json({
+    vercelEnv: process.env.VERCEL_ENV, // "preview" / "production"
+    keyMode,                           // "test" or "live"
+    envPrice,                          // サーバが今見ている STRIPE_PRICE_ID
+    priceInfo,                         // Stripe側の実在/モード
+  });
+}
+
+// ---- 本来の POST（決済セッション作成） ----
 export async function POST(req) {
   try {
     let body = {};
-    try { body = await req.json(); } catch {} // 空ボディでもOKにする
-
+    try { body = await req.json(); } catch {}
     const safeEmail = typeof body?.email === "string" ? body.email.trim() : "";
-    const envPrice = (process.env.STRIPE_PRICE_ID || "").trim();
-    const priceId = (body?.priceId || envPrice || "").trim();
 
+    const envPrice = (process.env.STRIPE_PRICE_ID || "").trim();
+    const priceId  = (body?.priceId || envPrice || "").trim();
     if (!priceId) {
       return NextResponse.json(
         { ok: false, error: "Missing STRIPE_PRICE_ID on server and priceId not provided" },
