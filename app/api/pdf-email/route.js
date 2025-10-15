@@ -1,49 +1,49 @@
 // app/api/pdf-email/route.js
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 
 export const runtime = "nodejs";
+const RESEND_API_URL = "https://api.resend.com/emails";
 
-// ---- 診断用：GET で現在の設定を返す ----
+// 診断（そのまま）
 export async function GET(req) {
   const email = new URL(req.url).searchParams.get("email") || "";
-  const hasKey = !!process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || "";
-  return NextResponse.json({ ok: true, diag: { email, hasKey, from } });
+  return NextResponse.json({
+    ok: true,
+    diag: {
+      email,
+      hasKey: !!process.env.RESEND_API_KEY,
+      from: process.env.RESEND_FROM || "",
+    },
+  });
 }
 
-// ---- 送信：POST { email } ----
+// 送信（REST直呼び出し）
 export async function POST(req) {
   try {
-    let body = {};
-    try { body = await req.json(); } catch {}
-    const email = (body?.email || "").trim();
+    const { email } = await req.json().catch(() => ({}));
+    const to = (email || "").trim();
 
-    if (!email) {
-      return NextResponse.json({ ok: false, error: "email is required" }, { status: 400 });
-    }
-    if (!process.env.RESEND_API_KEY) {
-      return NextResponse.json({ ok: false, error: "RESEND_API_KEY not set" }, { status: 500 });
-    }
-    if (!process.env.RESEND_FROM) {
-      return NextResponse.json({ ok: false, error: "RESEND_FROM not set" }, { status: 500 });
-    }
+    if (!to) return NextResponse.json({ ok: false, error: "email is required" }, { status: 400 });
+    if (!process.env.RESEND_API_KEY) return NextResponse.json({ ok: false, error: "RESEND_API_KEY not set" }, { status: 500 });
+    if (!process.env.RESEND_FROM) return NextResponse.json({ ok: false, error: "RESEND_FROM not set" }, { status: 500 });
 
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    // まずは本文のみ（PDFは後で差し替えOK）
-    const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM,       // 例: noreply@ai-digital-lab.com（Resendで認証済み）
-      to: [email],
-      subject: "AIヘルス週次プラン（テスト送信）",
-      text:
-`このメールは送信テストです。
-決済は完了し、メール送信APIも動作しています。
-本番ではここにPDFを添付して送ります。`,
+    const r = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM,      // 例: "noreply@ai-digital-lab.com"
+        to: [to],
+        subject: "AIヘルス週次プラン（テスト送信）",
+        text: `このメールは送信テストです。\n決済は完了し、メール送信APIも動作しています。`,
+      }),
     });
 
-    if (error) {
-      return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return NextResponse.json({ ok: false, status: r.status, error: data?.message || JSON.stringify(data) }, { status: 500 });
     }
     return NextResponse.json({ ok: true, id: data?.id || null });
   } catch (e) {
