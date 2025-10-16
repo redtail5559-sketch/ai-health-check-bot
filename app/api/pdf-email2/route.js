@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "fontkit"; // ★ これ必須：pdf-lib で TTF を使うため
+import fontkit from "@pdf-lib/fontkit"; // ★ これ必須：pdf-lib で TTF を使うため
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
