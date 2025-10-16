@@ -3,7 +3,17 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit"; // ★ これ必須：pdf-lib で TTF を使うため
+
+// ---- fontkit をランタイムでロード（@pdf-lib/fontkit → だめなら fontkit）
+async function loadFontkit() {
+  try {
+    const m = await import("@pdf-lib/fontkit");
+    return m.default || m;
+  } catch {
+    const m2 = await import("fontkit");   // ← こちらは default なし
+    return m2;                             // 名前空間のまま返す
+  }
+}
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -21,14 +31,15 @@ function getOrigin(req) {
 async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan = [], fontBytes }) {
   const pdf = await PDFDocument.create();
 
-  // ★ TTF を使う前に fontkit を登録
+  // ★ TTF を使う前に fontkit を登録（どちらか片方が入っていればOK）
+  const fontkit = await loadFontkit();
   pdf.registerFontkit(fontkit);
 
   // 日本語フォントを埋め込み
   const jpFont = await pdf.embedFont(fontBytes, { subset: true });
 
   const page = pdf.addPage([595.28, 841.89]); // A4
-  const { width, height } = page.getSize();
+  const { height } = page.getSize();
 
   const draw = (text, x, y, size = 12, color = rgb(0, 0, 0)) => {
     page.drawText(String(text ?? ""), { x, y, size, font: jpFont, color });
