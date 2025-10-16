@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
+import path from "path";
+import { readFile } from "fs/promises";
 
 // ---- fontkit をランタイムでロード（@pdf-lib/fontkit → だめなら fontkit）
 async function loadFontkit() {
@@ -107,14 +109,10 @@ export async function POST(req) {
     if (!process.env.RESEND_API_KEY) return NextResponse.json({ ok: false, error: "RESEND_API_KEY not set" }, { status: 500 });
     if (!process.env.RESEND_FROM) return NextResponse.json({ ok: false, error: "RESEND_FROM not set" }, { status: 500 });
 
-    // 1) 日本語フォントをロード（絶対URL → ArrayBuffer → Uint8Array）
-    const origin = getOrigin(req);
-    const fontUrl = `${origin}/fonts/NotoSansJP-Regular.ttf`;
-    const fontAB = await fetch(fontUrl).then(r => {
-      if (!r.ok) throw new Error(`failed to fetch font: ${r.status}`);
-      return r.arrayBuffer();
-    });
-    const fontBytes = new Uint8Array(fontAB);
+    // 1) 日本語フォントをロード（ローカルFS → Uint8Array）※HTTPを使わないので401回避
+    const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansJP-Regular.ttf");
+    const fontBuf = await readFile(fontPath);         // Buffer
+    const fontBytes = new Uint8Array(fontBuf.buffer, fontBuf.byteOffset, fontBuf.byteLength);
 
     // 2) PDF 生成 → Base64
     const pdfBuf = await makePlanPdf({ email: to, title, plan, fontBytes });
