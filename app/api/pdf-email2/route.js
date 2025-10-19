@@ -1,26 +1,57 @@
-// app/api/pdf-email/route.js
-import { NextResponse } from "next/server";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
+// app/api/pdf-email2/route.js
 export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { PDFDocument, rgb } from "pdf-lib";
+import path from "path";
+import { readFile } from "fs/promises";
+
+// ---- fontkit をランタイムでロード（@pdf-lib/fontkit → だめなら fontkit）
+async function loadFontkit() {
+  try {
+    const m = await import("@pdf-lib/fontkit");
+    return m.default || m;
+  } catch {
+    const m2 = await import("fontkit");   // ← こちらは default なし
+    return m2;                             // 名前空間のまま返す
+  }
+}
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 
-// --- ① 簡易PDFを生成する（引数の情報でPDF化）
-async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan = [] }) {
+// 現在のオリジン取得（Preview/Prod 両対応）
+function getOrigin(req) {
+  try {
+    const u = new URL(req.url);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  }
+}
+
+/** NotoSansJP を埋め込んで PDF を作る */
+async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan = [], fontBytes }) {
   const pdf = await PDFDocument.create();
+
+  // ★ TTF を使う前に fontkit を登録（どちらか片方が入っていればOK）
+  const fontkit = await loadFontkit();
+  pdf.registerFontkit(fontkit);
+
+  // 日本語フォントを埋め込み
+  const jpFont = await pdf.embedFont(fontBytes, { subset: true });
+
   const page = pdf.addPage([595.28, 841.89]); // A4
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const { width, height } = page.getSize();
+  const { height } = page.getSize();
 
   const draw = (text, x, y, size = 12, color = rgb(0, 0, 0)) => {
-    page.drawText(String(text ?? ""), { x, y, size, font, color });
+    page.drawText(String(text ?? ""), { x, y, size, font: jpFont, color });
   };
 
   // ヘッダー
   draw(title, 40, height - 60, 20);
   draw(`送付先: ${email}`, 40, height - 90, 10, rgb(0.2, 0.2, 0.2));
 
-  // コンテンツ（サンプル: 7日分）
+  // 本文（サンプル：7日分）
   const lines = plan.length
     ? plan
     : [
@@ -36,11 +67,11 @@ async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan =
   let y = height - 130;
   draw("7日メニュー（食事/運動）", 40, y, 14);
   y -= 20;
+
   for (const line of lines) {
     if (y < 60) {
-      // 足りなくなったら次ページ
-      const page2 = pdf.addPage([595.28, 841.89]);
-      page2.drawText("続き", { x: 40, y: 800, size: 12, font });
+      const next = pdf.addPage([595.28, 841.89]);
+      next.drawText("続き", { x: 40, y: 800, size: 12, font: jpFont });
       y = 770;
     } else {
       draw(`• ${line}`, 48, y, 12);
@@ -48,15 +79,16 @@ async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan =
     }
   }
 
-  const bytes = await pdf.save(); // Uint8Array
-  return Buffer.from(bytes);      // NodeのBufferとして返す
+  const bytes = await pdf.save();   // Uint8Array
+  return Buffer.from(bytes);        // Buffer
 }
 
-// --- 診断: 環境と送信先を確認
+/** GET: 診断用（環境確認） */
 export async function GET(req) {
   const email = new URL(req.url).searchParams.get("email") || "";
   return NextResponse.json({
     ok: true,
+    marker: "pdf-email2 send v1",
     diag: {
       email,
       hasKey: !!process.env.RESEND_API_KEY,
@@ -65,23 +97,28 @@ export async function GET(req) {
   });
 }
 
-// --- 送信: POST { email, title?, plan?[] }
+/** POST: { email, title?, plan?[] } を受け取り送信 */
 export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
     const to = (body?.email || "").trim();
-    const title = (body?.title || "AIヘルス週次プラン");
+    const title = body?.title || "AIヘルス週次プラン";
     const plan = Array.isArray(body?.plan) ? body.plan : [];
 
     if (!to) return NextResponse.json({ ok: false, error: "email is required" }, { status: 400 });
     if (!process.env.RESEND_API_KEY) return NextResponse.json({ ok: false, error: "RESEND_API_KEY not set" }, { status: 500 });
     if (!process.env.RESEND_FROM) return NextResponse.json({ ok: false, error: "RESEND_FROM not set" }, { status: 500 });
 
-    // ② PDF生成 → Base64
-    const pdfBuf = await makePlanPdf({ email: to, title, plan });
+    // 1) 日本語フォントをロード（ローカルFS → Uint8Array）※HTTPを使わないので401回避
+    const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansJP-Regular.ttf");
+    const fontBuf = await readFile(fontPath);         // Buffer
+    const fontBytes = new Uint8Array(fontBuf.buffer, fontBuf.byteOffset, fontBuf.byteLength);
+
+    // 2) PDF 生成 → Base64
+    const pdfBuf = await makePlanPdf({ email: to, title, plan, fontBytes });
     const pdfBase64 = pdfBuf.toString("base64");
 
-    // ③ Resend REST API で送信（添付あり）
+    // 3) Resend で送信
     const r = await fetch(RESEND_API_URL, {
       method: "POST",
       headers: {
@@ -89,7 +126,7 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM,   // 例: "noreply@ai-digital-lab.com"
+        from: process.env.RESEND_FROM, // 例: "noreply@ai-digital-lab.com"
         to: [to],
         subject: `${title}（PDF添付）`,
         text:
@@ -97,11 +134,7 @@ export async function POST(req) {
 AIヘルス週次プランのPDFを添付しています。
 ご確認ください。`,
         attachments: [
-          {
-            filename: "health-plan.pdf",
-            content: pdfBase64,                     // Base64文字列
-            contentType: "application/pdf",         // 任意（あると親切）
-          },
+          { filename: "health-plan.pdf", content: pdfBase64, contentType: "application/pdf" },
         ],
       }),
     });
@@ -112,6 +145,7 @@ AIヘルス週次プランのPDFを添付しています。
     }
     return NextResponse.json({ ok: true, id: data?.id || null });
   } catch (e) {
+    console.error("pdf-email2 error:", e);
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
 }

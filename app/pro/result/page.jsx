@@ -1,38 +1,18 @@
 // app/pro/result/page.jsx
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const runtime = "nodejs";
-
 import Image from "next/image";
 import Link from "next/link";
 import ResultClient from "./ResultClient";
-import { headers } from "next/headers";
 
-function resolveBaseUrl() {
-  const h = headers();
-  const proto = h.get("x-forwarded-proto") || "http";
-  const host = h.get("x-forwarded-host") || h.get("host");
-  return `${proto}://${host}`;
-}
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
-async function getPlan(profile = {}) {
-  const baseUrl = resolveBaseUrl();
-  const res = await fetch(`${baseUrl}/api/ai-plan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profile }),
-    cache: "no-store",
-  });
-  const json = await res.json().catch(() => ({}));
-  return json?.plan || {};
-}
-
-export default async function Page({ searchParams }) {
-  const email = searchParams?.email || "";
-  const plan = await getPlan({});
+export default function Page({ searchParams }) {
+  // SSRでemailを確実に受け取る
+  const emailParam =
+    typeof searchParams?.email === "string" ? searchParams.email.trim() : "";
 
   return (
-    // ← 下部固定ナビと被らないように余白を確保
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
       {/* ヘッダー */}
       <div className="mb-4 flex items-center gap-3">
@@ -49,10 +29,72 @@ export default async function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* 本文 */}
-      <ResultClient report={plan} email={email} />
+      {/* ✅ emailParam を props として確実に渡す */}
+      <ResultClient email={emailParam} />
 
-      {/* 画面下部の固定ナビ：重なり対策に pointer-events を調整 */}
+      {/* 強制ブート: URL / session_id からメールを復元して #email に代入 */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  function log(m){ try{ console.log("[result-boot]", m); }catch(e){} }
+  try{
+    var usp = new URLSearchParams(location.search || "");
+    var email = (usp.get("email") || "").trim();
+    var sid = (usp.get("session_id") || usp.get("sessionId") || "").trim();
+    var SSKEY = "result.email";
+
+    // sessionStorageの既存値も候補に
+    if(!email){
+      try{ email = (sessionStorage.getItem(SSKEY) || "").trim(); }catch(e){}
+    }
+
+    function setEmail(val){
+      if(!val){ log("no email resolved"); return; }
+      try{ sessionStorage.setItem(SSKEY, val); }catch(e){}
+      var input = document.getElementById("email");
+      if(input){
+        input.value = val;
+        try{ input.dispatchEvent(new Event("input", { bubbles: true })); }catch(e){}
+        log("set email: " + val);
+      }else{
+        log("input#email not found");
+      }
+    }
+
+    async function lookupBySession(id){
+      try{
+        var r = await fetch("/api/checkout-session-lookup?session_id=" + encodeURIComponent(id), { cache: "no-store" });
+        var t = await r.text();
+        log("lookup resp: " + t);
+        if(!t) return "";
+        try{
+          var d = JSON.parse(t);
+          return (d && d.email) ? String(d.email).trim() : "";
+        }catch(e){ return ""; }
+      }catch(e){
+        log("lookup fail: " + e);
+        return "";
+      }
+    }
+
+    (async function run(){
+      if(email){ setEmail(email); return; }
+      if(sid){
+        var fromStripe = await lookupBySession(sid);
+        if(fromStripe){ setEmail(fromStripe); return; }
+      }
+      log("no email from url/session/stripe");
+    })();
+  }catch(e){
+    console.error("[result-boot] fatal", e);
+  }
+})();
+          `,
+        }}
+      />
+
+      {/* 下部ナビ */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">
         <div className="pointer-events-auto flex gap-3 rounded-xl border bg-white/90 px-4 py-2 shadow">
           <Link href="/" className="px-3 py-1.5 rounded-md hover:bg-gray-50">
@@ -63,16 +105,6 @@ export default async function Page({ searchParams }) {
           </Link>
         </div>
       </div>
-
-      {/* ✅ Server ComponentでもOKな通常の<style>でページ限定の非表示を適用 */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            /* 結果ページ限定。意図しない重複見出しを非表示に */
-            .pro-result h1.text-2xl.font-bold { display: none !important; }
-          `,
-        }}
-      />
     </div>
   );
 }

@@ -1,139 +1,125 @@
-// app/pro/result/ResultClient.jsx
 "use client";
+import { useEffect, useState } from "react";
 
-import { useEffect, useState, useCallback } from "react";
-
-export default function ResultClient({ profile }) {
-  const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState(null);
-  const [error, setError] = useState(null);
-
-  // 送信系
+export default function ResultClient({ email: propsEmail = "" }) {
   const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sendMsg, setSendMsg] = useState("");
+  const [debug, setDebug] = useState("");
 
-  const loadPlan = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/ai-plan?ts=" + Date.now(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile }),
-        cache: "no-store",
-        next: { revalidate: 0 },
-      });
-      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      if (!data?.ok) throw new Error(data?.error || "unknown error");
-      setPlan(data.plan || null);
-    } catch (e) {
-      setError(e?.message || String(e));
-      setPlan(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [profile]);
+  // ✅ AIプラン生成用ステート
+  const [plan, setPlan] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
+    const fromSS =
+      typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
+    const initial = propsEmail || fromSS || "";
+    setEmail(initial);
+    try { sessionStorage.setItem("result.email", initial); } catch {}
+    setDebug((d) => d + `初期email:${initial}\n`);
+  }, [propsEmail]);
 
-  const sendPdfEmail = useCallback(async () => {
-    if (!plan) return;
-    setSending(true);
-    setSendMsg("");
-    try {
-      const payload = {
-        to: email && /\S+@\S+\.\S+/.test(email) ? email : undefined, // 空なら既定の送信先(info@...)に
-        subject: "AI健康診断レポート",
-        report: plan,   // ← /api/ai-plan の plan をそのまま渡す
-        profile,        // ← 任意（PDFの先頭に概要として入る）
-      };
+  useEffect(() => {
+    if (email) { setDebug((d) => d + `既にemailあり:${email}\n`); return; }
+    if (typeof window === "undefined") return;
+    const usp = new URLSearchParams(window.location.search);
+    const sid = usp.get("session_id") || usp.get("sessionId");
+    if (!sid) { setDebug((d) => d + "URLにsession_idなし\n"); return; }
 
-      const res = await fetch("/api/pdf-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || `send failed: ${res.status}`);
+    setDebug((d) => d + `API呼び出し開始:${sid}\n`);
+    (async () => {
+      try {
+        const res = await fetch(`/api/checkout-session-lookup?session_id=${encodeURIComponent(sid)}`, { cache: "no-store" });
+        const txt = await res.text();
+        setDebug((d) => d + `API応答:${txt}\n`);
+        let data = null; try { data = JSON.parse(txt); } catch {}
+        const found = (data?.email || "").trim();
+        if (found) {
+          setEmail(found);
+          try { sessionStorage.setItem("result.email", found); } catch {}
+          setDebug((d) => d + `取得成功:${found}\n`);
+        } else {
+          setDebug((d) => d + "取得失敗(空)\n");
+        }
+      } catch (e) {
+        setDebug((d) => d + "APIエラー:" + String(e) + "\n");
       }
-      setSendMsg("PDFを添付して送信しました。メールをご確認ください。");
-    } catch (e) {
-      setSendMsg("送信エラー: " + (e?.message || String(e)));
-    } finally {
-      setSending(false);
+    })();
+  }, [email]);
+
+  useEffect(() => {
+    async function fetchPlan() {
+      try {
+        setLoading(true);
+        setError("");
+        setDebug((d) => d + "AIプラン生成開始\n");
+        const payload = { input: "糖質控えめ・高たんぱくでお願いします", profile: { age: 42, sex: "male", goal: "脂肪減少" } };
+        const res = await fetch("/api/ai-plan", {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (json.ok) { setDebug((d) => d + "AIプラン取得成功\n"); setPlan(json.plan); }
+        else { throw new Error(json.error || "AIプラン取得に失敗しました"); }
+      } catch (e) {
+        setError(String(e));
+        setDebug((d) => d + `AIプランエラー:${e}\n`);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [email, plan, profile]);
+    fetchPlan();
+  }, []);
+
+  const onChange = (e) => {
+    const v = (e.target.value || "").trim();
+    setEmail(v);
+    try { sessionStorage.setItem("result.email", v); } catch {}
+  };
 
   return (
-    <div className="space-y-4">
-      {/* 操作列 */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={loadPlan}
-          className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? "生成中…" : "メニューを再生成"}
-        </button>
+    <div className="pro-result">
+      <div className="header">
+        <img src="/icon.png" alt="" width={36} height={36} />
+        <h1>AIヘルス週次プラン</h1>
+      </div>
+      <div className="subtitle">食事とワークアウトの7日メニュー</div>
 
-        {/* メール送信UI */}
+      <div className="toolbar">
+        <button className="btn" type="button" onClick={() => location.reload()}>
+          メニューを再生成
+        </button>
         <input
+          id="email"
+          name="email"
           type="email"
-          placeholder="送信先メール（空なら既定のinfo@に送信）"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="送信先メール（空なら既定のinfo@〜に送）"
+          className="input"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border rounded px-3 py-2 min-w-[280px]"
+          onChange={onChange}
         />
-        <button
-          onClick={sendPdfEmail}
-          className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
-          disabled={!plan || sending}
-        >
-          {sending ? "送信中…" : "PDFをメール送信"}
+        <button className="btn primary" type="button" disabled={loading}>
+          PDFをメール送信
         </button>
       </div>
 
-      {sendMsg && <div className="text-sm">{sendMsg}</div>}
+      {error && <div className="alert">エラー: {error}</div>}
 
-      {error && <div className="text-red-600 text-sm">エラー: {error}</div>}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-2">AIヘルス週次プラン</h2>
+        {loading && <p>AIがプランを生成中です...</p>}
+        {!loading && !error && plan.length > 0 && (
+          <ul className="list-disc ml-6 text-sm">
+            {plan.map((line, i) => <li key={i}>{line}</li>)}
+          </ul>
+        )}
+      </div>
 
-      {!error && !plan && <div className="text-sm text-gray-600">読み込み中…</div>}
-
-      {plan && (
-        <table className="w-full border border-gray-300 text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border p-2">曜日</th>
-              <th className="border p-2">朝食</th>
-              <th className="border p-2">昼食</th>
-              <th className="border p-2">夕食</th>
-              <th className="border p-2">運動</th>
-              <th className="border p-2">Tips</th>
-            </tr>
-          </thead>
-          <tbody>
-            {["mon","tue","wed","thu","fri","sat","sun"].map((k) => {
-              const jp = {mon:"月",tue:"火",wed:"水",thu:"木",fri:"金",sat:"土",sun:"日"}[k];
-              const d = plan[k] || {};
-              return (
-                <tr key={k}>
-                  <td className="border p-2 text-center">{jp}</td>
-                  <td className="border p-2">{d.breakfast}</td>
-                  <td className="border p-2">{d.lunch}</td>
-                  <td className="border p-2">{d.dinner}</td>
-                  <td className="border p-2">{d.workout}</td>
-                  <td className="border p-2">{d.tips}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      <pre className="text-xs bg-gray-100 p-2 whitespace-pre-wrap">{debug}</pre>
     </div>
   );
 }
