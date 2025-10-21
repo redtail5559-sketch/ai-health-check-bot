@@ -98,7 +98,7 @@ ${JSON.stringify(profile, null, 2)}
     ],
     // “毎回ユニーク”の源泉：温度＋シード（temperatureはやや高め）
     temperature: 0.8,
-    max_tokens: 1100,
+    max_tokens: 1800,
     response_format: { type: "json_schema", json_schema: { name: "WeekPlan", schema, strict: true } },
     // OpenAIは user_id/seed を受け取らないので、プロンプトに含めて非決定性を確保
     // （上の temperature により毎回ユニークになります）
