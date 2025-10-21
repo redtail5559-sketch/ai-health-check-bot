@@ -5,26 +5,21 @@ export default function ResultClient({ email: propsEmail = "" }) {
   const [email, setEmail] = useState("");
   const [debug, setDebug] = useState("");
 
-  // ✅ AIプラン生成用ステート
   const [plan, setPlan] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ 送信ステート
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
 
-  /* ---------------- 初期セット：props or sessionStorage ---------------- */
   useEffect(() => {
-    const fromSS =
-      typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
+    const fromSS = typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
     const initial = propsEmail || fromSS || "";
     setEmail(initial);
     try { sessionStorage.setItem("result.email", initial); } catch {}
     setDebug((d) => d + `初期email:${initial}\n`);
   }, [propsEmail]);
 
-  /* ---------------- session_id / sessionId から復元 ---------------- */
   useEffect(() => {
     if (email) { setDebug((d) => d + `既にemailあり:${email}\n`); return; }
     if (typeof window === "undefined") return;
@@ -36,59 +31,25 @@ export default function ResultClient({ email: propsEmail = "" }) {
     setDebug((d) => d + `API呼び出し開始:${sid}\n`);
     (async () => {
       try {
-        const res = await fetch(`/api/checkout-session-lookup?session_id=${encodeURIComponent(sid)}`, { cache: "no-store" });
-        const txt = await res.text();
-        setDebug((d) => d + `API応答:${txt}\n`);
-        let data = null; try { data = JSON.parse(txt); } catch {}
-        const found = (data?.email || "").trim();
-        if (found) {
-          setEmail(found);
-          try { sessionStorage.setItem("result.email", found); } catch {}
-          setDebug((d) => d + `取得成功:${found}\n`);
+        const res = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}`, { cache: "no-store" });
+        const raw = await res.text();
+        setDebug((d) => d + `API応答:${raw}\n`);
+        let json = null; try { json = JSON.parse(raw); } catch {}
+        if (res.ok && json?.ok && Array.isArray(json.data?.weekPlan)) {
+          setPlan(json.data.weekPlan);
+          setEmail(json.data.email || "");
+          try { sessionStorage.setItem("result.email", json.data.email || ""); } catch {}
+          setDebug((d) => d + "週次プラン取得成功\n");
         } else {
-          setDebug((d) => d + "取得失敗(空)\n");
+          throw new Error(json?.error || "週次プラン取得に失敗しました");
         }
       } catch (e) {
-        setDebug((d) => d + "APIエラー:" + String(e) + "\n");
+        setError(String(e));
+        setDebug((d) => d + `APIエラー:${e}\n`);
       }
     })();
   }, [email]);
 
-  /* ---------------- AIプラン取得 ---------------- */
-  useEffect(() => {
-    async function fetchPlan() {
-      try {
-        setLoading(true);
-        setError("");
-        setDebug((d) => d + "AIプラン生成開始\n");
-        const payload = { input: "糖質控えめ・高たんぱくでお願いします", profile: { age: 42, sex: "male", goal: "脂肪減少" } };
-        const res = await fetch("/api/ai-plan", {
-          method: "POST",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        // ← JSON断定はしない（サーバーが壊れた応答でも安全に）
-        const raw = await res.text();
-        let json = null; try { json = JSON.parse(raw); } catch {}
-        if (res.ok && json?.ok) {
-          setDebug((d) => d + "AIプラン取得成功\n");
-          setPlan(Array.isArray(json.plan) ? json.plan : []);
-        } else {
-          throw new Error(json?.error || raw || "AIプラン取得に失敗しました");
-        }
-      } catch (e) {
-        setError(String(e));
-        setDebug((d) => d + `AIプランエラー:${e}\n`);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPlan();
-  }, []);
-
-  /* ---------------- メール送信 ---------------- */
   const sendPdf = async () => {
     setError("");
     setSentOK(false);
@@ -97,21 +58,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
 
     try {
       const to = (email || "").trim();
-
-      // ざっくりバリデーション
       const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to);
       if (!valid) throw new Error("メールアドレスを正しく入力してください");
-
-      // planが空でもAPI側でデフォルトが入るが、一応バックアップ
-      const safePlan = (plan && plan.length > 0) ? plan : [
-        "月: 納豆ご飯 + 味噌汁 / 30分ウォーキング",
-        "火: 鶏むね肉の照り焼き / 20分ストレッチ",
-        "水: 野菜たっぷりカレー / 休息",
-        "木: さば味噌 / 30分ウォーキング",
-        "金: 豚しゃぶサラダ / 20分筋トレ",
-        "土: パスタ + サラダ / 軽い散歩",
-        "日: 好きなもの少量 / 休息",
-      ];
 
       const res = await fetch("/api/pdf-email", {
         method: "POST",
@@ -120,14 +68,12 @@ export default function ResultClient({ email: propsEmail = "" }) {
         body: JSON.stringify({
           email: to,
           title: "AIヘルス週次プラン",
-          plan: safePlan,
+          plan,
         }),
       });
 
-      // ★ まずtextで受け、パースを試す（空レス耐性）
       const raw = await res.text();
       let json = null; try { json = JSON.parse(raw); } catch {}
-
       if (!res.ok || !json?.ok) {
         const msg = json?.error || raw || `HTTP ${res.status}`;
         throw new Error(msg);
@@ -143,18 +89,16 @@ export default function ResultClient({ email: propsEmail = "" }) {
     }
   };
 
-  /* ---------------- 入力 ---------------- */
   const onChange = (e) => {
     const v = (e.target.value || "").trim();
     setEmail(v);
     try { sessionStorage.setItem("result.email", v); } catch {}
   };
 
-  /* ---------------- JSX ---------------- */
   return (
     <div className="pro-result">
       <div className="header">
-        <img src="/icon.png" alt="" width={36} height={36} />
+        <img src="/icon.png" alt="" width={36} height={36} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
         <h1>AIヘルス週次プラン</h1>
       </div>
       <div className="subtitle">食事とワークアウトの7日メニュー</div>
@@ -191,16 +135,38 @@ export default function ResultClient({ email: propsEmail = "" }) {
       </div>}
 
       <div className="mb-4">
-        <h2 className="text-lg font-semibold mb-2">AIヘルス週次プラン</h2>
+        <h2 className="text-lg font-semibold mb-2">週次プラン（表形式）</h2>
         {loading && <p>AIがプランを生成中です...</p>}
         {!loading && !error && plan.length > 0 && (
-          <ul className="list-disc ml-6 text-sm">
-            {plan.map((line, i) => <li key={i}>{line}</li>)}
-          </ul>
+          <table className="table-auto text-sm border-collapse border border-gray-300">
+            <thead>
+              <tr>
+                <th className="border px-2 py-1">曜日</th>
+                <th className="border px-2 py-1">朝食</th>
+                <th className="border px-2 py-1">昼食</th>
+                <th className="border px-2 py-1">夕食</th>
+                <th className="border px-2 py-1">間食</th>
+                <th className="border px-2 py-1">運動</th>
+                <th className="border px-2 py-1">Tips</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.map((d, i) => (
+                <tr key={i}>
+                  <td className="border px-2 py-1">{d.day}</td>
+                  <td className="border px-2 py-1">{d.meals?.breakfast}</td>
+                  <td className="border px-2 py-1">{d.meals?.lunch}</td>
+                  <td className="border px-2 py-1">{d.meals?.dinner}</td>
+                  <td className="border px-2 py-1">{d.meals?.snack}</td>
+                  <td className="border px-2 py-1">{d.workout?.name}（{d.workout?.minutes}分）</td>
+                  <td className="border px-2 py-1">{d.workout?.tips}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* デバッグ */}
       <pre className="text-xs bg-gray-100 p-2 whitespace-pre-wrap">{debug}</pre>
     </div>
   );
