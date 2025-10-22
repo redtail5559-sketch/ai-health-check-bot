@@ -87,10 +87,7 @@ async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan =
   };
 
   // ヘッダー画像とタイトル
-  // page.drawImage(iconImage, { x: 40, y: height - 60, width: 32, height: 32 });
-  // page.drawImage(logoImage, { x: width - 120, y: height - 60, width: 80, height: 32 });
-  // draw(title + "　食事とワークアウトの7日メニュー", 80, height - 60, 14);
-  draw(`送付先: ${email}`, 80, height - 80, 10, rgb(0.3, 0.3, 0.3));
+    draw(`送付先: ${email}`, 80, height - 80, 10, rgb(0.3, 0.3, 0.3));
 
   // 表形式描画
   const headers = ["曜日", "朝食", "昼食", "夕食", "間食", "運動", "Tips"];
