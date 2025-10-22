@@ -64,46 +64,96 @@ async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan =
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
 
-  // 日本語フォントを埋め込み（subsetでサイズ節約）
   const jpFont = await pdf.embedFont(fontBytes, { subset: true });
 
-  const page = pdf.addPage([595.28, 841.89]); // A4
+  // 画像読み込み
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const iconBytes = await fetch(`${origin}/ai-robot.png`).then(r => r.arrayBuffer());
+  const logoBytes = await fetch(`${origin}/logo.png`).then(r => r.arrayBuffer());
+  const iconImage = await pdf.embedPng(iconBytes);
+  const logoImage = await pdf.embedPng(logoBytes);
+
+  const pageSize = [595.28, 841.89]; // A4
+  let page = pdf.addPage(pageSize);
   const { width, height } = page.getSize();
 
   const draw = (text, x, y, size = 12, color = rgb(0, 0, 0)) => {
     page.drawText(String(text ?? ""), { x, y, size, font: jpFont, color });
   };
 
-  // ヘッダー
-  draw(title, 40, height - 60, 20);
-  draw(`送付先: ${email}`, 40, height - 90, 10, rgb(0.2, 0.2, 0.2));
+  const drawLine = (x1, y1, x2, y2, thickness = 0.5) => {
+    page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness });
+  };
 
-  const lines = plan.length
-    ? plan
-    : [
-        "月: 納豆ご飯 + 味噌汁 / 30分ウォーキング",
-        "火: 鶏むね肉の照り焼き / 20分ストレッチ",
-        "水: 野菜たっぷりカレー / 休息",
-        "木: さば味噌 / 30分ウォーキング",
-        "金: 豚しゃぶサラダ / 20分筋トレ",
-        "土: パスタ + サラダ / 軽い散歩",
-        "日: 好きなもの少量 / 休息",
-      ];
+  // ヘッダー画像とタイトル
+  page.drawImage(iconImage, { x: 40, y: height - 60, width: 32, height: 32 });
+  page.drawImage(logoImage, { x: width - 120, y: height - 60, width: 80, height: 32 });
+  draw(title + "　食事とワークアウトの7日メニュー", 80, height - 60, 14);
+  draw(`送付先: ${email}`, 80, height - 80, 10, rgb(0.3, 0.3, 0.3));
 
-  let y = height - 130;
-  draw("7日メニュー（食事/運動）", 40, y, 14);
-  y -= 20;
+  // 表形式描画
+  const headers = ["曜日", "朝食", "昼食", "夕食", "間食", "運動", "Tips"];
+  const colWidths = [50, 80, 80, 80, 60, 80, 100];
+  const startX = 40;
+  let y = height - 120;
 
-  for (const line of lines) {
-    if (y < 60) {
-      const next = pdf.addPage([595.28, 841.89]);
-      next.drawText("続き", { x: 40, y: 800, size: 12, font: jpFont });
-      y = 770;
-    } else {
-      draw(`• ${line}`, 48, y, 12);
-      y -= 18;
+  const drawHeaderRow = () => {
+    let x = startX;
+    const rowHeight = 16;
+
+    // 背景色（薄いピンク）
+    page.drawRectangle({
+      x: startX,
+      y: y - 2,
+      width: colWidths.reduce((a, b) => a + b, 0),
+      height: rowHeight,
+      color: rgb(1, 0.9, 0.9),
+    });
+
+    headers.forEach((text, i) => {
+      draw(text, x + 4, y + 2, 10);
+      drawLine(x, y, x, y - rowHeight); // 縦線
+      x += colWidths[i];
+    });
+    drawLine(startX, y, x, y); // 上線
+    drawLine(startX, y - rowHeight, x, y - rowHeight); // 下線
+    y -= rowHeight;
+  };
+
+  const drawDataRow = (values) => {
+    let x = startX;
+    const rowHeight = 16;
+    values.forEach((text, i) => {
+      draw(String(text ?? ""), x + 4, y + 2, 9);
+      drawLine(x, y, x, y - rowHeight); // 縦線
+      x += colWidths[i];
+    });
+    drawLine(startX, y - rowHeight, x, y - rowHeight); // 下線
+    y -= rowHeight;
+  };
+
+  drawHeaderRow();
+
+  for (const row of plan) {
+    if (y < 80) {
+      page = pdf.addPage(pageSize);
+      y = height - 60;
+      drawHeaderRow();
     }
+    const values = [
+      row.day,
+      row.meals?.breakfast,
+      row.meals?.lunch,
+      row.meals?.dinner,
+      row.meals?.snack,
+      `${row.workout?.name}（${row.workout?.minutes}分）`,
+      row.workout?.tips,
+    ];
+    drawDataRow(values);
   }
+
+  // フッター
+  draw("Powered by AI Digital Lab", startX, 40, 10, rgb(0.4, 0.4, 0.4));
 
   const bytes = await pdf.save();
   return Buffer.from(bytes);
@@ -156,7 +206,7 @@ export async function POST(req) {
 
     // 2) フォント取得
     const origin = getOrigin(req);
-    const fontUrl = `${origin}/fonts/NotoSansJP-Regular.ttf`;
+    const fontUrl = "https://fonts.gstatic.com/s/notosansjp/v27/-F6ofjtqLzI2JPCgQBnw7HFQogg.woff2";
     let fontBytes;
     try {
       const fr = await fetch(fontUrl, { cache: "no-store" });
