@@ -7,6 +7,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
+  const title = "AIヘルス週次プラン";
+  const subtitle = "食事とワークアウトの7日メニュー";
 
   useEffect(() => {
     const fromSS = typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
@@ -55,7 +57,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
         cache: "no-store",
         body: JSON.stringify({
           email: to,
-          title: "AIヘルス週次プラン",
+          title,
+          subtitle,
           plan,
         }),
       });
@@ -83,10 +86,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
 
   return (
     <div className="pro-result">
-      //<div className="header">
-      //  <img src="/icon.png" alt="" width={36} height={36} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
-      //  <h1>AIヘルス週次プラン</h1>
-      //</div>
+      <h1>{title}</h1>
+      {subtitle && subtitle.trim() !== title.trim() && <h2>{subtitle}</h2>}
 
       <div className="toolbar">
         <button className="btn" type="button" onClick={() => location.reload()}>
@@ -115,9 +116,11 @@ export default function ResultClient({ email: propsEmail = "" }) {
       </div>
 
       {error && <div className="alert">エラー: {error}</div>}
-      {sentOK && !error && <div className="alert" style={{ background: "#ecfdf5", color: "#065f46", borderLeftColor: "#34d399" }}>
-        送信しました。メールをご確認ください。
-      </div>}
+      {sentOK && !error && (
+        <div className="alert" style={{ background: "#ecfdf5", color: "#065f46", borderLeftColor: "#34d399" }}>
+          送信しました。メールをご確認ください。
+        </div>
+      )}
 
       <div className="mb-4">
         {plan.length > 0 && (
