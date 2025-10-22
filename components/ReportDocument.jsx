@@ -1,4 +1,10 @@
 // components/ReportDocument.jsx
+import { Font } from "@react-pdf/renderer";
+import { pdf } from "@react-pdf/renderer";
+import { UnicodeCIDFont } from "@react-pdf/renderer";
+
+Font.register({ family: "HeiseiKakuGo-W5", src: undefined });
+
 import {
   Document,
   Page,
