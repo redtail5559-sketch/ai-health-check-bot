@@ -84,8 +84,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
 
   return (
     <div className="pro-result">
-      <h1>{title}</h1>
-      {subtitle && subtitle.trim() !== title.trim() && <h2>{subtitle}</h2>}
+     {subtitle && subtitle.trim() !== title.trim() && <h2>{subtitle}</h2>}
 
       <div className="toolbar">
         <button className="btn" type="button" onClick={() => location.reload()}>
