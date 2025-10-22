@@ -1,7 +1,8 @@
 // app/api/pdf-email/route.js
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "fontkit";
+import * as fontkit from "fontkit";
+
 
 export const runtime = "nodejs";
 const RESEND_API_URL = "https://api.resend.com/emails";
@@ -206,19 +207,20 @@ export async function POST(req) {
 
     // 2) フォント取得
     const origin = getOrigin(req);
-    const fontUrl = "https://fonts.gstatic.com/s/notosansjp/v27/-F6ofjtqLzI2JPCgQBnw7HFQogg.woff2";
+    const fontUrl = "https://fonts.gstatic.com/s/notosansjp/v52/-F6ofjtqLzI2JPCgQBnw7HFQogg.woff2";
     let fontBytes;
     try {
-      const fr = await fetch(fontUrl, { cache: "no-store" });
-      if (!fr.ok) throw new Error(`fetch font failed: ${fr.status}`);
-      const ab = await fr.arrayBuffer();
-      fontBytes = new Uint8Array(ab);
-    } catch (e) {
-      return NextResponse.json(
-        { ok: false, error: `font fetch error: ${String(e)}`, fontUrl },
-        { status: 500 },
-      );
-    }
+  const fr = await fetch(fontUrl, { cache: "no-store" });
+  if (!fr.ok) throw new Error(`fetch font failed: ${fr.status}`);
+  const ab = await fr.arrayBuffer();
+  fontBytes = new Uint8Array(ab);
+} catch (e) {
+  console.error("フォント取得失敗:", e);
+  return NextResponse.json(
+    { ok: false, error: `font fetch error: ${String(e)}`, fontUrl },
+    { status: 500 },
+  );
+}
 
     // 3) PDF生成→Base64
     let pdfBase64 = "";
