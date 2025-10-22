@@ -8,6 +8,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
  　const title = "";
+ 　const subtitle = "";
   
   useEffect(() => {
     const fromSS = typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
