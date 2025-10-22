@@ -7,8 +7,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
-  const title = "AIヘルス週次プラン";
-  const subtitle = "食事とワークアウトの7日メニュー";
+  const title = "AI健康診断結果";
+  const subtitle = "食事と運動の7日メニュー";
 
   useEffect(() => {
     const fromSS = typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
