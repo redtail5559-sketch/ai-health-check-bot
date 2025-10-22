@@ -3,12 +3,8 @@ import { useEffect, useState } from "react";
 
 export default function ResultClient({ email: propsEmail = "" }) {
   const [email, setEmail] = useState("");
-  const [debug, setDebug] = useState("");
-
   const [plan, setPlan] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
 
@@ -17,44 +13,36 @@ export default function ResultClient({ email: propsEmail = "" }) {
     const initial = propsEmail || fromSS || "";
     setEmail(initial);
     try { sessionStorage.setItem("result.email", initial); } catch {}
-    setDebug((d) => d + `初期email:${initial}\n`);
   }, [propsEmail]);
 
   useEffect(() => {
-    if (email) { setDebug((d) => d + `既にemailあり:${email}\n`); return; }
     if (typeof window === "undefined") return;
-
     const usp = new URLSearchParams(window.location.search);
     const sid = usp.get("session_id") || usp.get("sessionId");
-    if (!sid) { setDebug((d) => d + "URLにsession_idなし\n"); return; }
+    if (!sid) return;
 
-    setDebug((d) => d + `API呼び出し開始:${sid}\n`);
     (async () => {
       try {
         const res = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}`, { cache: "no-store" });
         const raw = await res.text();
-        setDebug((d) => d + `API応答:${raw}\n`);
         let json = null; try { json = JSON.parse(raw); } catch {}
         if (res.ok && json?.ok && Array.isArray(json.data?.weekPlan)) {
           setPlan(json.data.weekPlan);
           setEmail(json.data.email || "");
           try { sessionStorage.setItem("result.email", json.data.email || ""); } catch {}
-          setDebug((d) => d + "週次プラン取得成功\n");
         } else {
           throw new Error(json?.error || "週次プラン取得に失敗しました");
         }
       } catch (e) {
         setError(String(e));
-        setDebug((d) => d + `APIエラー:${e}\n`);
       }
     })();
-  }, [email]);
+  }, []);
 
   const sendPdf = async () => {
     setError("");
     setSentOK(false);
     setSending(true);
-    setDebug((d) => d + "PDF送信開始\n");
 
     try {
       const to = (email || "").trim();
@@ -80,10 +68,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
       }
 
       setSentOK(true);
-      setDebug((d) => d + `PDF送信成功 id:${json?.id ?? "n/a"}\n`);
     } catch (e) {
       setError(String(e));
-      setDebug((d) => d + "PDF送信エラー:" + String(e) + "\n");
     } finally {
       setSending(false);
     }
@@ -97,11 +83,10 @@ export default function ResultClient({ email: propsEmail = "" }) {
 
   return (
     <div className="pro-result">
-      <div className="header">
-        <img src="/icon.png" alt="" width={36} height={36} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
-        <h1>AIヘルス週次プラン</h1>
-      </div>
-      <div className="subtitle">食事とワークアウトの7日メニュー</div>
+      //<div className="header">
+      //  <img src="/icon.png" alt="" width={36} height={36} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+      //  <h1>AIヘルス週次プラン</h1>
+      //</div>
 
       <div className="toolbar">
         <button className="btn" type="button" onClick={() => location.reload()}>
@@ -135,9 +120,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
       </div>}
 
       <div className="mb-4">
-        <h2 className="text-lg font-semibold mb-2">週次プラン（表形式）</h2>
-        {loading && <p>AIがプランを生成中です...</p>}
-        {!loading && !error && plan.length > 0 && (
+        {plan.length > 0 && (
           <table className="table-auto text-sm border-collapse border border-gray-300">
             <thead>
               <tr>
@@ -166,8 +149,6 @@ export default function ResultClient({ email: propsEmail = "" }) {
           </table>
         )}
       </div>
-
-      <pre className="text-xs bg-gray-100 p-2 whitespace-pre-wrap">{debug}</pre>
     </div>
   );
 }
