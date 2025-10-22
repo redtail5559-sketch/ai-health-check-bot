@@ -87,9 +87,9 @@ async function makePlanPdf({ email, title = "AIヘルス週次プラン", plan =
   };
 
   // ヘッダー画像とタイトル
-  page.drawImage(iconImage, { x: 40, y: height - 60, width: 32, height: 32 });
-  page.drawImage(logoImage, { x: width - 120, y: height - 60, width: 80, height: 32 });
-  draw(title + "　食事とワークアウトの7日メニュー", 80, height - 60, 14);
+  // page.drawImage(iconImage, { x: 40, y: height - 60, width: 32, height: 32 });
+  // page.drawImage(logoImage, { x: width - 120, y: height - 60, width: 80, height: 32 });
+  // draw(title + "　食事とワークアウトの7日メニュー", 80, height - 60, 14);
   draw(`送付先: ${email}`, 80, height - 80, 10, rgb(0.3, 0.3, 0.3));
 
   // 表形式描画
@@ -219,6 +219,14 @@ export async function POST(req) {
   return NextResponse.json(
     { ok: false, error: `font fetch error: ${String(e)}`, fontUrl },
     { status: 500 },
+  );
+}
+
+// ✅ ここに追加！
+if (plan.length === 0) {
+  return NextResponse.json(
+    { ok: false, error: "AI診断結果が空です。PDFを生成できません" },
+    { status: 400 },
   );
 }
 
