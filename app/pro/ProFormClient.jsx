@@ -18,6 +18,7 @@ export default function ProFormClient() {
     drink: "",
     smoke: "",
     diet: "",
+    goal: "",
     email: "",
   });
 
@@ -220,7 +221,20 @@ export default function ProFormClient() {
           <option value="ときどき">ときどき</option>
           <option value="毎日">毎日</option>
         </select>
-
+        
+        <select
+         value={form.goal}
+         onChange={onChange("goal")}
+         className="border p-3 rounded"
+         required
+>
+        <option value="" disabled>目的を選択*</option>
+        <option value="体重を減らしたい">体重を減らしたい</option>
+        <option value="筋力をつけたい">筋力をつけたい</option>
+        <option value="健康維持">健康維持</option>
+        <option value="便秘改善">便秘改善</option>
+        </select>
+        
         <select
           value={form.diet}
           onChange={onChange("diet")}

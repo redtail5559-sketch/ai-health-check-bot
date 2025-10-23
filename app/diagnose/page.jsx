@@ -21,6 +21,7 @@ export default function Home() {
     const weight = Number(form.get("weightKg"));
     const age = Number(form.get("age"));
     const sex = form.get("sex");
+    const goal = form.get("goal");
 
     if (!height) e.heightCm = "身長を入力してください。";
     else if (height < 80 || height > 250) e.heightCm = "80〜250cm の範囲で入力してください。";
@@ -32,6 +33,9 @@ export default function Home() {
     else if (age < 5 || age > 120) e.age = "5〜120歳 の範囲で入力してください。";
 
     if (!sex) e.sex = "性別を選択してください。";
+
+    if (!goal) e.goal = "目的を入力してください。";
+
     return e;
   }
 
@@ -58,6 +62,7 @@ export default function Home() {
       age: Number(fd.get("age")),
       sex: fd.get("sex"),
       lifestyle,
+      goal: fd.get("goal") , 
     };
 
     try {
@@ -149,6 +154,15 @@ export default function Home() {
                   <option value="その他">その他</option>
                 </select>
               </Field>
+              
+              <Field label="目的（必須）" error={errors.goal}>
+               <input
+                name="goal"
+                placeholder="例）体重を減らしたい"
+                className={baseInput}
+                required
+               />
+               </Field>
             </div>
           </div>
 
@@ -172,8 +186,7 @@ export default function Home() {
               </Field>
               <Field label="食事（傾向や課題）">
                 <input name="diet" placeholder="例）外食多め、夜食あり" className={baseInput} />
-              </Field>
-            </div>
+              </div>
           </details>
 
           <button
