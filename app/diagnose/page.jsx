@@ -186,7 +186,7 @@ export default function Home() {
               </Field>
               <Field label="食事（傾向や課題）">
                 <input name="diet" placeholder="例）外食多め、夜食あり" className={baseInput} />
-              </div>
+              </Field>
           </details>
 
           <button
