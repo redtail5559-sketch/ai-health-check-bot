@@ -75,6 +75,13 @@ export async function POST(req) {
     const age = toNumber(body?.age);
     const sex = body?.sex ?? null;
     const lifestyle = body?.lifestyle ?? {};
+    const goal = body?.goal?.trim();
+    if (!goal) {
+      return NextResponse.json(
+        { ok: false, error: "目的（goal）は必須です。" },
+        { status: 400 }
+      );
+    }
 
     const bmi = bmiOf(heightCm, weightKg);
     const category = categoryJASSO(bmi);
@@ -123,6 +130,7 @@ export async function POST(req) {
 - BMI: ${bmi}（${category}）
 - 年齢: ${age ?? "不明"}
 - 性別: ${sex ?? "不明"}
+- 目的: ${goal}
 
 # ライフスタイル（短評でOK）
 - 飲酒: ${lifestyle?.drink ?? "-"}
