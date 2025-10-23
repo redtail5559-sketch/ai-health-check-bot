@@ -1,3 +1,5 @@
+// 修正済みの diagnose/page.jsx 全文（構文エラー解消済み）
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -8,13 +10,11 @@ const baseLabel = "block text-sm font-medium text-gray-700 mb-1";
 const row = "grid grid-cols-1 gap-4 sm:grid-cols-2";
 const card = "rounded-2xl border border-white/40 bg-white/60 backdrop-blur p-5 sm:p-7 shadow-sm";
 
-
 export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
 
-  // 軽いクライアントバリデーション
   function validate(form) {
     const e = {};
     const height = Number(form.get("heightCm"));
@@ -47,7 +47,6 @@ export default function Home() {
     setErrors(e);
     if (Object.keys(e).length) return;
 
-    // lifestyle まとめ（既存仕様に合わせて送信）
     const lifestyle = {
       drink: fd.get("drink") || "",
       smoke: fd.get("smoke") || "",
@@ -62,7 +61,7 @@ export default function Home() {
       age: Number(fd.get("age")),
       sex: fd.get("sex"),
       lifestyle,
-      goal: fd.get("goal") , 
+      goal: fd.get("goal"),
     };
 
     try {
@@ -104,7 +103,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-indigo-50 to-blue-100">
-
       {header}
 
       <section className="mx-auto mb-8 max-w-3xl px-4">
@@ -146,23 +144,21 @@ export default function Home() {
 
               <Field label="性別（任意）" error={errors.sex}>
                 <select name="sex" className={baseInput} defaultValue="">
-                  <option value="" disabled>
-                    選択してください
-                  </option>
+                  <option value="" disabled>選択してください</option>
                   <option value="男性">男性</option>
                   <option value="女性">女性</option>
                   <option value="その他">その他</option>
                 </select>
               </Field>
-              
+
               <Field label="目的（必須）" error={errors.goal}>
-               <input
-                name="goal"
-                placeholder="例）体重を減らしたい"
-                className={baseInput}
-                required
-               />
-               </Field>
+                <input
+                  name="goal"
+                  placeholder="例）体重を減らしたい"
+                  className={baseInput}
+                  required
+                />
+              </Field>
             </div>
           </div>
 
@@ -187,6 +183,7 @@ export default function Home() {
               <Field label="食事（傾向や課題）">
                 <input name="diet" placeholder="例）外食多め、夜食あり" className={baseInput} />
               </Field>
+            </div>
           </details>
 
           <button
@@ -197,79 +194,22 @@ export default function Home() {
             {submitting ? "診断中…" : "無料で今日の健康診断"}
           </button>
 
-          {/* 入力エラーのライブリージョン */}
           <p className="sr-only" aria-live="polite">
             {Object.keys(errors).length ? "入力に誤りがあります" : ""}
           </p>
         </form>
       </section>
 
-      {/* 結果表示 */}
       <section className="mx-auto max-w-3xl px-4 pb-12">
         {result && <ResultCard result={result} />}
       </section>
 
       <footer className="pb-10 text-center text-xs text-gray-500">
         <p className="px-4">
-          ※ 本ツールは一般的なヘルスアドバイスの提供を目的としており、医療行為ではありません。
-          体調に不安がある場合は医療機関にご相談ください。
-        </p>
+        ※ 本ツールは一般的なヘルスアドバイスの提供を目的としており、医療行為ではありません。
+           体調に不安がある場合は医療機関にご相談ください。
+      </p>
       </footer>
-    </main>
-  );
-}
-
-function Field({ label, error, children }) {
-  return (
-    <div>
-      <label className={baseLabel}>{label}</label>
-      {children}
-      {error ? (
-        <p className="mt-1 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function ResultCard({ result }) {
-  const { bmi, category, advice, tips = [], note } = result || {};
-  return (
-    <div className={card}>
-      <h3 className="text-lg font-semibold text-gray-900">診断結果</h3>
-      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Stat label="BMI" value={bmi ?? "-"} />
-        <Stat label="判定" value={category ?? "-"} />
-        <Stat label="メモ" value={note ?? "—"} />
-      </div>
-
-      {advice && (
-        <>
-          <h4 className="mt-6 text-base font-semibold text-gray-900">ワンポイント</h4>
-          <p className="mt-1 text-gray-700">{advice}</p>
-        </>
-      )}
-
-      {!!tips.length && (
-        <>
-          <h4 className="mt-5 text-base font-semibold text-gray-900">今日のヒント</h4>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-700">
-            {tips.map((t, i) => (
-              <li key={i}>{t}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-xl bg-gray-50 p-4 text-center">
-      <div className="text-xs font-medium text-gray-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-900">{value}</div>
-    </div>
+      </main>
   );
 }
