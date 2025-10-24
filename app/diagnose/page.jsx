@@ -8,7 +8,7 @@ import Field from "../../components/Field.jsx";
 const baseInput =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
 const baseLabel = "block text-sm font-medium text-gray-700 mb-1";
-const row = "grid grid-cols-1 gap-4 sm:grid-cols-2";
+const row = "grid grid-cols-1 gap-4";
 const card = "rounded-2xl border border-white/40 bg-white/60 backdrop-blur p-5 sm:p-7 shadow-sm";
 
 export default function Home() {
