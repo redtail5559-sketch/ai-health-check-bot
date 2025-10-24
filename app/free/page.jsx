@@ -1,74 +1,79 @@
-// app/free/page.jsx
-
 "use client";
 import { useState } from "react";
-import Link from "next/link";  // ← 追加
+import Link from "next/link";
 
 export default function Page() {
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  // 必須＋任意（入力の状態）
+  // 入力状態
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("male");
+  const [goal, setGoal] = useState(""); // ← 追加
 
-  // 詳細（任意）
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [drink, setDrink] = useState("none");        // none/light/medium/heavy
-  const [smoke, setSmoke] = useState("none");        // none/sometimes/daily
-  const [activity, setActivity] = useState("lt1");   // lt1/1to3/3to5/gt5
-  const [sleep, setSleep] = useState("6to7");        // lt6/6to7/7to8/gt8
-  const [diet, setDiet] = useState("japanese");      // japanese/balanced/carbheavy/fastfood/proteinheavy
+  const [drink, setDrink] = useState("none");
+  const [smoke, setSmoke] = useState("none");
+  const [activity, setActivity] = useState("lt1");
+  const [sleep, setSleep] = useState("6to7");
+  const [diet, setDiet] = useState("japanese");
 
-  // onSubmit をこのコードで置き換え
   const onSubmit = async (e) => {
     e.preventDefault();
-    setError?.("");
-    setResult?.(null);
+    setError("");
+    setResult(null);
 
-    // ← ここで FormData を作ります
     const fd = new FormData(e.currentTarget);
+    const h = Number(fd.get("heightCm"));
+    const w = Number(fd.get("weightKg"));
+    const ageVal = fd.get("age") ? Number(fd.get("age")) : undefined;
+    const sexVal = fd.get("sex") || undefined;
+    const goalVal = fd.get("goal")?.trim(); // ← 追加
 
-    // 基本項目
-    const h   = Number(fd.get("heightCm"));
-    const w   = Number(fd.get("weightKg"));
-    const ageVal = fd.get("age") ? Number(fd.get("age")) : undefined; // ← 名前衝突回避
-    const sexVal = fd.get("sex") || undefined;                        // ← 名前衝突回避
-
-    // 詳細（任意）
     const lifestyle = {
-      drink:    fd.get("drink")    || "none",
-      smoke:    fd.get("smoke")    || "none",
+      drink: fd.get("drink") || "none",
+      smoke: fd.get("smoke") || "none",
       activity: fd.get("activity") || "lt1",
-      sleep:    fd.get("sleep")    || "6to7",
-      diet:     fd.get("diet")     || "japanese",
+      sleep: fd.get("sleep") || "6to7",
+      diet: fd.get("diet") || "japanese",
     };
 
     if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) {
-      setError?.("身長・体重は 0 より大きい数値で入力してください。");
+      setError("身長・体重は 0 より大きい数値で入力してください。");
+      return;
+    }
+
+    if (!goalVal) {
+      setError("目的を入力してください。");
       return;
     }
 
     try {
-      setLoading?.(true);
+      setLoading(true);
       const res = await fetch("/api/free-advice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ heightCm: h, weightKg: w, age: ageVal, sex: sexVal, lifestyle }),
+        body: JSON.stringify({
+          heightCm: h,
+          weightKg: w,
+          age: ageVal,
+          sex: sexVal,
+          lifestyle,
+          goal: goalVal, // ← 追加
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setError?.(json?.errors?.join(" / ") || json?.error || "エラーが発生しました");
+        setError(json?.errors?.join(" / ") || json?.error || "エラーが発生しました");
       } else {
-        setResult?.(json.data);
+        setResult(json.data);
       }
     } catch {
-      setError?.("通信エラーが発生しました");
+      setError("通信エラーが発生しました");
     } finally {
-      setLoading?.(false);
+      setLoading(false);
     }
   };
 
@@ -147,64 +152,23 @@ export default function Page() {
           </div>
         </div>
 
-        {/* 詳細（任意） */}
-        <div className="rounded border p-3">
-          <details>
-            <summary>詳細（任意）</summary>
-
-            <div className="md:grid md:grid-cols-2 md:gap-4">
-              <div className="md:col-span-1">
-                <label htmlFor="drink" className="block text-sm mb-1">飲酒</label>
-                <select id="drink" name="drink" defaultValue="none" className="w-full rounded border p-2">
-                  <option value="none">なし</option>
-                  <option value="light">少量</option>
-                  <option value="medium">適量</option>
-                  <option value="heavy">多い</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-1">
-                <label htmlFor="smoke" className="block text-sm mb-1">喫煙</label>
-                <select id="smoke" name="smoke" defaultValue="none" className="w-full rounded border p-2">
-                  <option value="none">なし</option>
-                  <option value="sometimes">ときどき</option>
-                  <option value="daily">毎日</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-1">
-                <label htmlFor="activity" className="block text-sm mb-1">運動頻度</label>
-                <select id="activity" name="activity" defaultValue="lt1" className="w-full rounded border p-2">
-                  <option value="lt1">週1以下</option>
-                  <option value="1to3">週1〜3</option>
-                  <option value="3to5">週3〜5</option>
-                  <option value="gt5">週5以上</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-1">
-                <label htmlFor="sleep" className="block text-sm mb-1">睡眠</label>
-                <select id="sleep" name="sleep" defaultValue="6to7" className="w-full rounded border p-2">
-                  <option value="lt6">6h未満</option>
-                  <option value="6to7">6–7h</option>
-                  <option value="7to8">7–8h</option>
-                  <option value="gt8">8h以上</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="diet" className="block text-sm mb-1">食事傾向</label>
-                <select id="diet" name="diet" defaultValue="japanese" className="w-full rounded border p-2">
-                  <option value="japanese">和食中心</option>
-                  <option value="balanced">バランス型</option>
-                  <option value="carbheavy">炭水化物多め</option>
-                  <option value="fastfood">外食・加工多め</option>
-                  <option value="proteinheavy">たんぱく多め</option>
-                </select>
-              </div>
-            </div>
-          </details>
+        {/* 目的（必須） */}
+        <div>
+          <label htmlFor="goal" className="block text-sm mb-1">目的（必須）</label>
+          <input
+            id="goal"
+            name="goal"
+            type="text"
+            placeholder="例）体重を減らしたい"
+            className="w-full rounded border p-2"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            required
+          />
         </div>
+
+        {/* 詳細（任意） */}
+        {/* ここは元のままでOK */}
 
         <button
           type="submit"
@@ -215,28 +179,7 @@ export default function Page() {
         </button>
       </form>
 
-      {error && <p className="mt-4 text-red-600">{error}</p>}
-
-      {result && (
-        <div className="mt-6 space-y-2 rounded border p-4">
-          <p><span className="font-semibold">BMI：</span>{result.bmi}</p>
-          <p><span className="font-semibold">判定：</span>{result.category}</p>
-          <p><span className="font-semibold">ワンポイント：</span>{result.advice}</p>
-          {result.tips?.length > 0 && (
-            <ul className="list-disc pl-5">
-              {result.tips.map((t, i) => <li key={i}>{t}</li>)}
-            </ul>
-          )}
-          {result.note && <p className="text-sm text-gray-500">メモ：{result.note}</p>}
-        </div>
-      )}
-
-      {/* ↓↓↓ ここが「画面下のほうに戻るリンク」 */}
-      <div className="mt-8">
-        <Link href="/" prefetch={false} className="text-blue-600 underline">
-          ← トップに戻る
-        </Link>
-      </div>
+      {/* 結果・エラー・戻るリンクは元のままでOK */}
     </main>
   );
 }
