@@ -1,5 +1,6 @@
 // 修正済みの diagnose/page.jsx 全文（構文エラー解消済み）
 
+import ResultCard from "./ResultCard.jsx";
 "use client";
 
 import { useState, useMemo } from "react";
