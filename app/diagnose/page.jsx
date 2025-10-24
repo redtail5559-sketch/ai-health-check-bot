@@ -1,10 +1,9 @@
 // 修正済みの diagnose/page.jsx 全文（構文エラー解消済み）
-
-import ResultCard from "./ResultCard.jsx";
 "use client";
 
 import { useState, useMemo } from "react";
 import Field from "../../components/Field.jsx";
+import ResultCard from "./ResultCard.jsx";
 
 const baseInput =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
