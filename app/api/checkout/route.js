@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 // ✅ 環境判定でキーとPrice IDを切り替え
-const isProd = process.env.NODE_ENV === "production";
+const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 
 const stripe = new Stripe(
   isProd
@@ -14,27 +14,23 @@ const stripe = new Stripe(
   { apiVersion: "2024-06-20" }
 );
 
-const priceId = isProd
-  ? process.env.STRIPE_PRICE_ID
-  : process.env.STRIPE_PRICE_ID_TEST;
-
 export async function POST(req) {
-  try {
-    const body = await req.json();
-    const appOrigin =
-      process.env.NEXT_PUBLIC_APP_ORIGIN || "http://localhost:3000";
-
-    const session = await stripe.checkout.sessions.create({
+      const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
       line_items: [
         {
-          price: priceId,
-          quantity: 1,
+        price: isProd ? process.env.STRIPE_PRICE_ID : process.env.STRIPE_PRICE_ID_TEST,
+        quantity: 1,
         },
       ],
-      success_url: `${appOrigin}/pro/success?sessionID={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appOrigin}/pro/cancel`,
+      success_url: `${req.headers.get("origin")}/pro/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/pro/cancel`,
+    });
+
+      console.log("✅ Stripe session:", session);
+
+      return Response.json({ url: session.url });
+
       billing_address_collection: "auto",
       locale: "ja",
       metadata: {
@@ -52,8 +48,6 @@ export async function POST(req) {
       },
       customer_email: body.email || "",
     });
-
-    console.log("Stripe session:", session); // ✅ ここで session.id を確認
 
     return NextResponse.json({ checkouturl: session.url });
   } catch (e) {

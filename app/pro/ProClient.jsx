@@ -35,7 +35,7 @@ export default function ProClient() {
   };
 
   const startCheckout = async () => {
-    console.log("✅ Checkout button clicked"); // ① クリック確認
+    console.log("✅ Checkout button clicked");
 
     try {
       setLoading(true);
@@ -46,27 +46,23 @@ export default function ProClient() {
         body: JSON.stringify(form),
       });
 
-      console.log("✅ fetch response status:", res.status); // ② fetch 成功確認
+      console.log("✅ fetch response status:", res.status);
 
-      let data;
-      try {
-        data = await res.json();
-        console.log("✅ Stripe response:", data); // ② res.json() 到達確認
-      } catch (jsonErr) {
-        throw new Error("レスポンスのJSON解析に失敗しました");
+      if (!res.ok) {
+        const fallbackText = await res.text();
+        throw new Error(`APIエラー: ${fallbackText}`);
       }
+
+      const data = await res.json();
+      console.log("✅ Stripe response:", data);
 
       if (!data.checkouturl) {
         throw new Error("checkout URL not returned");
       }
 
-      if (!res.ok) {
-        throw new Error(data.error || "failed to create checkout session");
-      }
-
       window.location.href = data.checkouturl;
     } catch (e) {
-      console.error("❌ 決済エラー:", e); // ③ catchでのログ出力
+      console.error("❌ 決済エラー:", e);
       alert(`決済画面を開けませんでした。詳細: ${e.message}`);
     } finally {
       setLoading(false);

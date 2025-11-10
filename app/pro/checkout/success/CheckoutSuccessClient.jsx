@@ -15,30 +15,29 @@ export default function CheckoutSuccessClient() {
       sp.get("session_id") ||
       "";
 
-    try {
-      if (sid) sessionStorage.setItem("sessionId", sid);
-    } catch {}
-
-    const sessionId =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("sessionId")
-        : "";
-
-    if (!sessionId || !sessionId.startsWith("cs_")) {
+    if (!sid || !sid.startsWith("cs_")) {
       setError("sessionId が無効です");
       return;
     }
 
-    console.log("✅ sessionId used for fetch:", sessionId);
+    console.log("✅ sessionId used for fetch:", sid);
 
-    fetch(`/pro/success/result?sessionId=${encodeURIComponent(sessionId)}`)
-      .then((res) => res.json())
-      .then((json) => {
+    fetch(`/pro/success/result?sessionId=${encodeURIComponent(sid)}`)
+      .then(async (res) => {
+        console.log("✅ fetch status:", res.status);
+        if (!res.ok) {
+          const fallbackText = await res.text();
+          throw new Error(`APIエラー: ${fallbackText}`);
+        }
+        const json = await res.json();
+        console.log("✅ full result:", json);
+
         if (!json.ok) {
           throw new Error(json.error || "診断データ取得に失敗しました");
         }
+
         setResult(json.data);
-        console.log("✅ weekPlan:", json.data.weekPlan); // ← ここ！
+        console.log("✅ weekPlan:", json.data.weekPlan);
       })
       .catch((e) => {
         console.error("❌ 診断取得エラー:", e);
