@@ -15,24 +15,24 @@ const stripe = new Stripe(
 );
 
 export async function POST(req) {
-      const session = await stripe.checkout.sessions.create({
+  try {
+    const body = await req.json(); // ← これが抜けていた
+
+    const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
         {
-        price: isProd ? process.env.STRIPE_PRICE_ID : process.env.STRIPE_PRICE_ID_TEST,
-        quantity: 1,
+          price: isProd
+            ? process.env.STRIPE_PRICE_ID
+            : process.env.STRIPE_PRICE_ID_TEST,
+          quantity: 1,
         },
       ],
       success_url: `${req.headers.get("origin")}/pro/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/pro/cancel`,
-    });
-
-      console.log("✅ Stripe session:", session);
-
-      return Response.json({ url: session.url });
-
       billing_address_collection: "auto",
       locale: "ja",
+      customer_email: body.email || "",
       metadata: {
         heightCm: body.heightCm || "",
         weightKg: body.weightKg || "",
@@ -46,8 +46,9 @@ export async function POST(req) {
         goal: body.goal || "",
         email: body.email || "",
       },
-      customer_email: body.email || "",
     });
+
+    console.log("✅ Stripe session:", session);
 
     return NextResponse.json({ checkouturl: session.url });
   } catch (e) {
