@@ -7,12 +7,11 @@ export default function Page() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  // 入力状態
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("male");
-  const [goal, setGoal] = useState(""); // ← 追加
+  const [goal, setGoal] = useState("");
 
   const [drink, setDrink] = useState("none");
   const [smoke, setSmoke] = useState("none");
@@ -22,6 +21,7 @@ export default function Page() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    console.log("onSubmitが呼ばれました");
     setError("");
     setResult(null);
 
@@ -30,7 +30,7 @@ export default function Page() {
     const w = Number(fd.get("weightKg"));
     const ageVal = fd.get("age") ? Number(fd.get("age")) : undefined;
     const sexVal = fd.get("sex") || undefined;
-    const goalVal = fd.get("goal")?.trim(); // ← 追加
+    const goalVal = fd.get("goal")?.trim();
 
     const lifestyle = {
       drink: fd.get("drink") || "none",
@@ -61,16 +61,23 @@ export default function Page() {
           age: ageVal,
           sex: sexVal,
           lifestyle,
-          goal: goalVal, // ← 追加
+          goal: goalVal,
         }),
       });
+
+      console.log("APIレスポンスを受け取りました");
+
       const json = await res.json();
+      console.log("APIレスポンス:", json);
+
       if (!res.ok || !json.ok) {
         setError(json?.errors?.join(" / ") || json?.error || "エラーが発生しました");
       } else {
         setResult(json.data);
+        console.log("診断結果:", json.data);
       }
-    } catch {
+    } catch (err) {
+      console.error("通信エラー:", err);
       setError("通信エラーが発生しました");
     } finally {
       setLoading(false);
@@ -85,7 +92,6 @@ export default function Page() {
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">
-        {/* 身長 */}
         <div>
           <label htmlFor="heightCm" className="block text-sm mb-1">身長（cm）</label>
           <input
@@ -103,7 +109,6 @@ export default function Page() {
           />
         </div>
 
-        {/* 体重 */}
         <div>
           <label htmlFor="weightKg" className="block text-sm mb-1">体重（kg）</label>
           <input
@@ -121,7 +126,6 @@ export default function Page() {
           />
         </div>
 
-        {/* 年齢・性別 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="age" className="block text-sm mb-1">年齢（任意）</label>
@@ -152,7 +156,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* 目的（必須） */}
         <div>
           <label htmlFor="goal" className="block text-sm mb-1">目的（必須）</label>
           <input
@@ -167,8 +170,7 @@ export default function Page() {
           />
         </div>
 
-        {/* 詳細（任意） */}
-        {/* ここは元のままでOK */}
+        {/* 詳細（任意）は省略可能。必要なら元のコードから復元してください */}
 
         <button
           type="submit"
@@ -179,7 +181,27 @@ export default function Page() {
         </button>
       </form>
 
-      {/* 結果・エラー・戻るリンクは元のままでOK */}
+      {error && <p className="mt-4 text-red-600">{error}</p>}
+
+      {result && (
+        <div className="mt-6 space-y-2 rounded border p-4">
+          <p><span className="font-semibold">BMI：</span>{result.bmi}</p>
+          <p><span className="font-semibold">判定：</span>{result.category}</p>
+          <p><span className="font-semibold">ワンポイント：</span>{result.advice}</p>
+          {result.tips?.length > 0 && (
+            <ul className="list-disc pl-5">
+              {result.tips.map((t, i) => <li key={i}>{t}</li>)}
+            </ul>
+          )}
+          {result.note && <p className="text-sm text-gray-500">メモ：{result.note}</p>}
+        </div>
+      )}
+
+      <div className="mt-8">
+        <Link href="/" prefetch={false} className="text-blue-600 underline">
+          ← トップに戻る
+        </Link>
+      </div>
     </main>
   );
 }

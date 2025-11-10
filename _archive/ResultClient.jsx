@@ -7,9 +7,9 @@ export default function ResultClient({ email: propsEmail = "" }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [sentOK, setSentOK] = useState(false);
- 　const title = "";
- 　const subtitle = "";
-  
+  const title = "";
+  const subtitle = "";
+
   useEffect(() => {
     const fromSS = typeof window !== "undefined" ? sessionStorage.getItem("result.email") || "" : "";
     const initial = propsEmail || fromSS || "";
@@ -23,15 +23,18 @@ export default function ResultClient({ email: propsEmail = "" }) {
     const sid = usp.get("session_id") || usp.get("sessionId");
     if (!sid) return;
 
+    console.log("取得したsessionId:", sid);
+
     (async () => {
       try {
-        const res = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}`, { cache: "no-store" });
+        const res = await fetch(`/api/pro-result?sessionId=${encodeURIComponent(sid)}`);
         const raw = await res.text();
-        let json = null; try { json = JSON.parse(raw); } catch {}
-        if (res.ok && json?.ok && Array.isArray(json.data?.weekPlan)) {
+        const json = JSON.parse(raw);
+        console.log("APIレスポンス:", json);
+        if (json.ok && Array.isArray(json.data?.weekPlan)) {
           setPlan(json.data.weekPlan);
           setEmail(json.data.email || "");
-          try { sessionStorage.setItem("result.email", json.data.email || ""); } catch {}
+          sessionStorage.setItem("result.email", json.data.email || "");
         } else {
           throw new Error(json?.error || "週次プラン取得に失敗しました");
         }
@@ -40,6 +43,8 @@ export default function ResultClient({ email: propsEmail = "" }) {
       }
     })();
   }, []);
+
+  console.log("受け取ったplan:", plan);
 
   const sendPdf = async () => {
     setError("");
@@ -55,12 +60,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({
-          email: to,
-          title,
-          subtitle,
-          plan,
-        }),
+        body: JSON.stringify({ email: to, title, subtitle, plan }),
       });
 
       const raw = await res.text();
@@ -86,7 +86,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
 
   return (
     <div className="pro-result">
-     {subtitle && subtitle.trim() !== title.trim() && <h2>{subtitle}</h2>}
+      {subtitle && subtitle.trim() !== title.trim() && <h2>{subtitle}</h2>}
 
       <div className="toolbar">
         <button className="btn" type="button" onClick={() => location.reload()}>
@@ -144,7 +144,7 @@ export default function ResultClient({ email: propsEmail = "" }) {
                   <td className="border px-2 py-1">{d.meals?.dinner}</td>
                   <td className="border px-2 py-1">{d.meals?.snack}</td>
                   <td className="border px-2 py-1">{d.workout?.name}（{d.workout?.minutes}分）</td>
-                  <td className="border px-2 py-1">{d.workout?.tips}</td>
+                  <td className="border px-2 py-1">{d.workout?.tips || "（未設定）"}</td>
                 </tr>
               ))}
             </tbody>

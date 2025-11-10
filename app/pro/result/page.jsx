@@ -1,16 +1,37 @@
 // app/pro/result/page.jsx
 import Image from "next/image";
 import Link from "next/link";
-import ResultClient from "./ResultClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-export default function Page({ searchParams }) {
-  // SSRでemailを確実に受け取る
-  const emailParam =
-    typeof searchParams?.email === "string" ? searchParams.email.trim() : "";
+export default async function Page({ searchParams }) {
+  const sid = typeof searchParams?.sessionId === "string" ? searchParams.sessionId.trim() : "";
+  const emailParam = typeof searchParams?.email === "string" ? searchParams.email.trim() : "";
+
+  let plan = [];
+  let error = "";
+  let email = emailParam;
+
+  if (!sid) {
+    error = "URLにsessionIdが含まれていません";
+  } else {
+    try {
+      const res = await fetch(`http://localhost:3000/api/pro-result?sessionId=${encodeURIComponent(sid)}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (json.ok && Array.isArray(json.data?.weekPlan)) {
+        plan = json.data.weekPlan;
+        email = json.data.email || emailParam;
+      } else {
+        error = json?.error || "診断結果の取得に失敗しました";
+      }
+    } catch (e) {
+      error = String(e?.message || e);
+    }
+  }
 
   return (
     <div className="pro-result mx-auto max-w-2xl px-4 py-6 pb-28">
@@ -29,70 +50,36 @@ export default function Page({ searchParams }) {
         </div>
       </div>
 
-      {/* ✅ emailParam を props として確実に渡す */}
-      <ResultClient email={emailParam} />
-
-      {/* 強制ブート: URL / session_id からメールを復元して #email に代入 */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-(function(){
-  function log(m){ try{ console.log("[result-boot]", m); }catch(e){} }
-  try{
-    var usp = new URLSearchParams(location.search || "");
-    var email = (usp.get("email") || "").trim();
-    var sid = (usp.get("session_id") || usp.get("sessionId") || "").trim();
-    var SSKEY = "result.email";
-
-    // sessionStorageの既存値も候補に
-    if(!email){
-      try{ email = (sessionStorage.getItem(SSKEY) || "").trim(); }catch(e){}
-    }
-
-    function setEmail(val){
-      if(!val){ log("no email resolved"); return; }
-      try{ sessionStorage.setItem(SSKEY, val); }catch(e){}
-      var input = document.getElementById("email");
-      if(input){
-        input.value = val;
-        try{ input.dispatchEvent(new Event("input", { bubbles: true })); }catch(e){}
-        log("set email: " + val);
-      }else{
-        log("input#email not found");
-      }
-    }
-
-    async function lookupBySession(id){
-      try{
-        var r = await fetch("/api/checkout-session-lookup?session_id=" + encodeURIComponent(id), { cache: "no-store" });
-        var t = await r.text();
-        log("lookup resp: " + t);
-        if(!t) return "";
-        try{
-          var d = JSON.parse(t);
-          return (d && d.email) ? String(d.email).trim() : "";
-        }catch(e){ return ""; }
-      }catch(e){
-        log("lookup fail: " + e);
-        return "";
-      }
-    }
-
-    (async function run(){
-      if(email){ setEmail(email); return; }
-      if(sid){
-        var fromStripe = await lookupBySession(sid);
-        if(fromStripe){ setEmail(fromStripe); return; }
-      }
-      log("no email from url/session/stripe");
-    })();
-  }catch(e){
-    console.error("[result-boot] fatal", e);
-  }
-})();
-          `,
-        }}
-      />
+      {/* 表形式メニュー */}
+      {error && <div className="alert text-red-600 mb-4">エラー: {error}</div>}
+      {plan.length > 0 && (
+        <table className="table-auto text-sm border-collapse border border-gray-300 mb-6">
+          <thead>
+            <tr>
+              <th className="border px-2 py-1">曜日</th>
+              <th className="border px-2 py-1">朝食</th>
+              <th className="border px-2 py-1">昼食</th>
+              <th className="border px-2 py-1">夕食</th>
+              <th className="border px-2 py-1">間食</th>
+              <th className="border px-2 py-1">運動</th>
+              <th className="border px-2 py-1">Tips</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.map((d, i) => (
+              <tr key={i}>
+                <td className="border px-2 py-1">{d.day}</td>
+                <td className="border px-2 py-1">{d.meals?.breakfast}</td>
+                <td className="border px-2 py-1">{d.meals?.lunch}</td>
+                <td className="border px-2 py-1">{d.meals?.dinner}</td>
+                <td className="border px-2 py-1">{d.meals?.snack}</td>
+                <td className="border px-2 py-1">{d.workout?.name}（{d.workout?.minutes}分）</td>
+                <td className="border px-2 py-1">{d.workout?.tips || "（未設定）"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {/* 下部ナビ */}
       <div className="pointer-events-none fixed bottom-3 left-0 right-0 z-40 mx-auto flex w-full max-w-screen-sm justify-center">

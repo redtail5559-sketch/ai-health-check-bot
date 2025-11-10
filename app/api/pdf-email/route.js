@@ -1,10 +1,10 @@
 // app/api/pdf-email/route.js
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
 import * as fontkit from "fontkit";
 
 
-export const runtime = "nodejs";
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 /* -------------------- helpers -------------------- */
