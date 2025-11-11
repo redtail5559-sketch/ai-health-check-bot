@@ -10,9 +10,9 @@ export default function CheckoutSuccessClient() {
 
   useEffect(() => {
     const sid =
+      sp.get("session_id") || // ← 最優先
       sp.get("sessionId") ||
       sp.get("sid") ||
-      sp.get("session_id") ||
       "";
 
     if (!sid || !sid.startsWith("cs_")) {
@@ -43,7 +43,7 @@ export default function CheckoutSuccessClient() {
         console.error("❌ 診断取得エラー:", e);
         setError(e.message);
       });
-  }, [sp]);
+  }, []); // ← sp を依存にしない
 
   if (error) return <div className="text-red-500">エラー: {error}</div>;
   if (!result) return <div>診断データを取得中...</div>;
@@ -63,7 +63,7 @@ export default function CheckoutSuccessClient() {
       </ul>
 
       <h3 className="text-lg font-semibold mt-4">週間プラン（表形式）</h3>
-      {result.weekPlan?.length > 0 ? (
+      {Array.isArray(result.weekPlan) && result.weekPlan.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="table-auto w-full border border-gray-300 text-sm">
             <thead className="bg-gray-100">
