@@ -63,7 +63,7 @@ export default function CheckoutSuccessClient() {
         ))}
       </ul>
 
-      <h3 className="text-lg font-semibold mt-4">週間プラン（表形式）</h3>
+      <h3 className="text-lg font-semibold mt-4">週間プラン</h3>
       {Array.isArray(result.weekPlan) && result.weekPlan.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="table-auto w-full border border-gray-300 text-sm">
@@ -98,6 +98,19 @@ export default function CheckoutSuccessClient() {
       ) : (
         <p className="text-gray-500">週間プランが見つかりませんでした。</p>
       )}
+
+      {/* ✅ メール送信ボタン（仮実装） */}
+      <div className="mt-6">
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          onClick={() => {
+            console.log("📧 PDF送信処理（仮）:", result.email);
+            alert("PDF送信機能は現在準備中です");
+          }}
+        >
+          PDFをメール送信する
+        </button>
+      </div>
     </div>
   );
 }
