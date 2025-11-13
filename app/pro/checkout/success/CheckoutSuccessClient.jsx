@@ -10,7 +10,7 @@ export default function CheckoutSuccessClient() {
 
   useEffect(() => {
     const sid =
-      sp.get("session_id") || // ← 最優先
+      sp.get("session_id") ||
       sp.get("sessionId") ||
       sp.get("sid") ||
       "";
@@ -22,13 +22,15 @@ export default function CheckoutSuccessClient() {
 
     console.log("✅ sessionId used for fetch:", sid);
 
-    fetch(`/pro/success/result?sessionId=${encodeURIComponent(sid)}`)
+    // ✅ APIルートを修正し、HTMLエラーを防御
+    fetch(`/api/pro-success?session_id=${encodeURIComponent(sid)}`)
       .then(async (res) => {
         console.log("✅ fetch status:", res.status);
         if (!res.ok) {
           const fallbackText = await res.text();
           throw new Error(`APIエラー: ${fallbackText}`);
         }
+
         const json = await res.json();
         console.log("✅ full result:", json);
 
@@ -41,9 +43,9 @@ export default function CheckoutSuccessClient() {
       })
       .catch((e) => {
         console.error("❌ 診断取得エラー:", e);
-        setError(e.message);
+        setError(`診断データの取得に失敗しました: ${e.message}`);
       });
-  }, []); // ← sp を依存にしない
+  }, []);
 
   if (error) return <div className="text-red-500">エラー: {error}</div>;
   if (!result) return <div>診断データを取得中...</div>;
