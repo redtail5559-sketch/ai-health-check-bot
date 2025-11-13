@@ -22,7 +22,6 @@ export default function CheckoutSuccessClient() {
 
     console.log("✅ sessionId used for fetch:", sid);
 
-    // ✅ APIルートを修正し、HTMLエラーを防御
     fetch(`/api/pro-success?session_id=${encodeURIComponent(sid)}`)
       .then(async (res) => {
         console.log("✅ fetch status:", res.status);
@@ -83,14 +82,14 @@ export default function CheckoutSuccessClient() {
               {result.weekPlan.map((day, i) => (
                 <tr key={i}>
                   <td className="border px-2 py-1">{day.day}</td>
-                  <td className="border px-2 py-1">{day.meals.breakfast}</td>
-                  <td className="border px-2 py-1">{day.meals.lunch}</td>
-                  <td className="border px-2 py-1">{day.meals.dinner}</td>
-                  <td className="border px-2 py-1">{day.meals.snack}</td>
+                  <td className="border px-2 py-1">{day.meals?.breakfast || "未設定"}</td>
+                  <td className="border px-2 py-1">{day.meals?.lunch || "未設定"}</td>
+                  <td className="border px-2 py-1">{day.meals?.dinner || "未設定"}</td>
+                  <td className="border px-2 py-1">{day.meals?.snack || "未設定"}</td>
                   <td className="border px-2 py-1">
-                    {day.workout.name}（{day.workout.minutes}分）
+                    {day.workout?.name || "未設定"}（{day.workout?.minutes || 0}分）
                   </td>
-                  <td className="border px-2 py-1">{day.workout.tips}</td>
+                  <td className="border px-2 py-1">{day.workout?.tips || "なし"}</td>
                 </tr>
               ))}
             </tbody>

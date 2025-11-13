@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// ✅ 環境判定を NEXT_PUBLIC_ENV に変更（.env.local で定義済み）
 const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 const stripeSecretKey = isProd
   ? process.env.STRIPE_SECRET_KEY
@@ -41,13 +40,35 @@ export async function GET(req) {
       overview: "あなたは健康的な体型です。",
       goals: ["体脂肪率を下げる", "筋力を維持する"],
       weekPlan: [
-        { day: "月", activity: "ウォーキング 30分" },
-        { day: "火", activity: "筋トレ（上半身）" },
-        { day: "水", activity: "休息" },
-        { day: "木", activity: "ジョギング 20分" },
-        { day: "金", activity: "筋トレ（下半身）" },
-        { day: "土", activity: "ヨガ 30分" },
-        { day: "日", activity: "休息" },
+        {
+          day: "月",
+          meals: {
+            breakfast: "トーストと卵",
+            lunch: "鶏むね肉と野菜",
+            dinner: "魚と味噌汁",
+            snack: "ナッツ",
+          },
+          workout: {
+            name: "ウォーキング",
+            minutes: 30,
+            tips: "朝の涼しい時間に行いましょう",
+          },
+        },
+        {
+          day: "火",
+          meals: {
+            breakfast: "ヨーグルトとバナナ",
+            lunch: "豚肉とキャベツ炒め",
+            dinner: "豆腐と野菜スープ",
+            snack: "プロテインバー",
+          },
+          workout: {
+            name: "筋トレ（上半身）",
+            minutes: 40,
+            tips: "フォームを意識してゆっくり行う",
+          },
+        },
+        // 以下略（同様の構造で水〜日を追加可能）
       ],
     };
 
