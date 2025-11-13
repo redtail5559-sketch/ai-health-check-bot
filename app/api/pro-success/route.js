@@ -5,11 +5,13 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// 環境に応じてキーを切り替え
-const isProduction = process.env.NODE_ENV === "production";
-const stripeSecretKey = isProduction
+// ✅ 環境判定を NEXT_PUBLIC_ENV に変更（.env.local で定義済み）
+const isProd = process.env.NEXT_PUBLIC_ENV === "production";
+const stripeSecretKey = isProd
   ? process.env.STRIPE_SECRET_KEY
   : process.env.STRIPE_SECRET_KEY_TEST;
+
+console.log("✅ stripe key used:", stripeSecretKey);
 
 const stripe = new Stripe(stripeSecretKey);
 

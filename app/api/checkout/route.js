@@ -1,22 +1,32 @@
+// app/api/checkout/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { arrayAsString } from "pdf-lib";
 import Stripe from "stripe";
 
 // ✅ 環境判定でキーとPrice IDを切り替え
 const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 
 const stripe = new Stripe(
-  isProd
-    ? process.env.STRIPE_SECRET_KEY
-    : process.env.STRIPE_SECRET_KEY_TEST,
+  isProd ? process.env.STRIPE_SECRET_KEY : process.env.STRIPE_SECRET_KEY_TEST,
   { apiVersion: "2024-06-20" }
 );
 
 export async function POST(req) {
   try {
-    const body = await req.json(); // ← これが抜けていた
+    const body = await req.json();
+
+    const email = body.email?.trim() || "";
+
+    // ✅ メールアドレスのバリデーション
+    if (!email || !email.includes("@") || email.length < 5) {
+      return NextResponse.json(
+        { error: "Invalid email address: メールアドレスを正しく入力してください。" },
+        { status: 400 }
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -32,7 +42,7 @@ export async function POST(req) {
       cancel_url: `${req.headers.get("origin")}/pro/cancel`,
       billing_address_collection: "auto",
       locale: "ja",
-      customer_email: body.email || "",
+      customer_email: email,
       metadata: {
         heightCm: body.heightCm || "",
         weightKg: body.weightKg || "",
@@ -44,7 +54,7 @@ export async function POST(req) {
         smoke: body.smoke || "",
         diet: body.diet || "",
         goal: body.goal || "",
-        email: body.email || "",
+        email: email,
       },
     });
 
