@@ -3,10 +3,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { arrayAsString } from "pdf-lib";
 import Stripe from "stripe";
 
-// ✅ 環境判定でキーとPrice IDを切り替え
 const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 
 const stripe = new Stripe(
@@ -19,6 +17,7 @@ export async function POST(req) {
     const body = await req.json();
 
     const email = body.email?.trim() || "";
+    const goals = Array.isArray(body.goals) ? body.goals : [];
 
     // ✅ メールアドレスのバリデーション
     if (!email || !email.includes("@") || email.length < 5) {
@@ -53,7 +52,7 @@ export async function POST(req) {
         drink: body.drink || "",
         smoke: body.smoke || "",
         diet: body.diet || "",
-        goal: body.goal || "",
+        goals: goals.join(","), // ← 複数目標をカンマ区切りで渡す
         email: email,
       },
     });
