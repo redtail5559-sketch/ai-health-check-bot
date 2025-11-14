@@ -43,7 +43,10 @@ export default function ProClient() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          goals: form.goal ? [form.goal] : [], // ✅ 目標を配列で渡す
+        }),
       });
 
       console.log("✅ fetch response status:", res.status);
