@@ -15,7 +15,7 @@ const stripe = new Stripe(
 export async function POST(req) {
   try {
     const body = await req.json();
-
+    console.log("✅ 受信した goals:", body.goals); // ← ここを追加
     const email = body.email?.trim() || "";
     const goals = Array.isArray(body.goals) ? body.goals : [];
 

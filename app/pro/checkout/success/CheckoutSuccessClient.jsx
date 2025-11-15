@@ -1,3 +1,4 @@
+// ✅ force rebuild: goal display tweak
 "use client";
 
 import { useEffect, useState } from "react";
@@ -56,12 +57,7 @@ export default function CheckoutSuccessClient() {
       <p><strong>BMI:</strong> {result.bmi}</p>
       <p><strong>概要:</strong> {result.overview}</p>
 
-      <h3 className="text-lg font-semibold mt-4">目標</h3>
-      <ul className="list-disc pl-5">
-        {result.goals?.map((g, i) => (
-          <li key={i}>{g}</li>
-        ))}
-      </ul>
+      <p><strong>目標:</strong> {Array.isArray(result.goals) && result.goals.length > 0 ? result.goals.join("、") : "未設定"}</p>
 
       <h3 className="text-lg font-semibold mt-4">週間プラン</h3>
       {Array.isArray(result.weekPlan) && result.weekPlan.length > 0 ? (
