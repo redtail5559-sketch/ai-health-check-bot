@@ -1,3 +1,4 @@
+// PDFメール送信
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
