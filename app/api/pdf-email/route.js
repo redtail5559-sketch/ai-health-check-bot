@@ -4,7 +4,7 @@ import PDFDocument from "pdfkit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function POST(req: Request) {
+export async function POST(req) {
   const { email, bmi, overview, goals, weekPlan } = await req.json();
 
   const doc = new PDFDocument();
