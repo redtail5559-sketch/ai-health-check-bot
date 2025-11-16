@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import PDFDocument from "pdfkit";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// nullチェック付きでResend初期化（newは不要）
+if (!process.env.RESEND_API_KEY) {
+  throw new Error("RESEND_API_KEY is not defined");
+}
+const resend = Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
   const { email, bmi, overview, goals, weekPlan } = await req.json();
