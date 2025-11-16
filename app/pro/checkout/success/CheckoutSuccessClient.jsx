@@ -97,15 +97,24 @@ export default function CheckoutSuccessClient() {
 
       {/* ✅ メール送信ボタン（仮実装） */}
       <div className="mt-6">
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => {
-            console.log("📧 PDF送信処理（仮）:", result.email);
-            alert("PDF送信機能は現在準備中です");
-          }}
-        >
-          PDFをメール送信する
-        </button>
+   <button
+  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+  onClick={async () => {
+    const res = await fetch("/api/pdf-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result),
+    });
+
+    if (res.ok) {
+      alert("PDFをメール送信しました！");
+    } else {
+      alert("送信に失敗しました");
+    }
+  }}
+>
+  PDFをメール送信する
+</button>
       </div>
     </div>
   );
