@@ -1,8 +1,9 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
-import Resend from "resend"; // ← デフォルトインポートに変更
+import { Resend } from "resend";
 import PDFDocument from "pdfkit";
 
-// Resendは関数として初期化（newは使わない）
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
