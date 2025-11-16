@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import Resend from "resend"; // ← デフォルトインポートに変更
 import PDFDocument from "pdfkit";
 
-// Resendはクラスとして初期化（new Resend）
+// Resendは関数として初期化（newは使わない）
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
