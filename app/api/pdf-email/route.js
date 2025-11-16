@@ -8,10 +8,9 @@ export async function POST(req) {
   const { email, bmi, overview, goals, weekPlan } = await req.json();
 
   const doc = new PDFDocument();
-  const buffers: Buffer[] = [];
+  const buffers = [];
 
-  // PDF生成完了を待つ Promise を作成
-  const pdfBufferPromise = new Promise<Buffer>((resolve) => {
+  const pdfBufferPromise = new Promise((resolve) => {
     doc.on("data", buffers.push.bind(buffers));
     doc.on("end", () => {
       const pdfData = Buffer.concat(buffers);
@@ -19,7 +18,6 @@ export async function POST(req) {
     });
   });
 
-  // PDF内容を書く
   doc.fontSize(16).text("AI診断結果", { align: "center" });
   doc.moveDown();
   doc.text(`メール: ${email}`);
@@ -42,12 +40,10 @@ export async function POST(req) {
 
   doc.end();
 
-  // PDF生成完了を待つ
   const pdfData = await pdfBufferPromise;
 
-  // メール送信
   await resend.emails.send({
-    from: process.env.FROM_EMAIL!,
+    from: process.env.FROM_EMAIL,
     to: email,
     subject: "AI診断レポート",
     text: "診断結果PDFを添付します。",
