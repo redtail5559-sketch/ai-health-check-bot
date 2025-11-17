@@ -1,3 +1,5 @@
+// PDFメール最新版
+
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
