@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/**/route.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
