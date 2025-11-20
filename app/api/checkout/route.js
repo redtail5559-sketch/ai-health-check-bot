@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const isProd = process.env.NEXT_PUBLIC_ENV === "production";
+const isProd = process.env.NEXT_PUBLIC_ENV === "preview";
 
 const stripe = new Stripe(
   isProd ? process.env.STRIPE_SECRET_KEY : process.env.STRIPE_SECRET_KEY_TEST,
