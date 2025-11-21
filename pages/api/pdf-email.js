@@ -1,4 +1,4 @@
-// PDFメール最新版（NullError対策 + エラー詳細返却）
+// PDFメール最新版（NullError対策 + エラー詳細返却 + JSON補強）
 
 export const runtime = "nodejs";
 
@@ -9,8 +9,21 @@ import PDFDocument from "pdfkit";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
+  let payload;
+
+  // ✅ JSONパース失敗時の補強
   try {
-    const { email, bmi, overview, goals, weekPlan } = await req.json();
+    payload = await req.json();
+  } catch (e) {
+    console.error("❌ JSONパースエラー:", e);
+    return NextResponse.json(
+      { ok: false, error: "リクエストが不正です（JSONが空または壊れています）" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const { email, bmi, overview, goals, weekPlan } = payload;
 
     const doc = new PDFDocument();
     const buffers = [];
@@ -62,7 +75,7 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("PDF送信エラー:", error);
+    console.error("❌ PDF送信エラー:", error);
     return NextResponse.json(
       { ok: false, error: error?.message ?? "PDF送信中に不明なエラーが発生しました" },
       { status: 500 }
