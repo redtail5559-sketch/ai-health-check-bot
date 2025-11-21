@@ -1,4 +1,4 @@
-// ✅ force rebuild: goal display tweak
+// ✅ force rebuild: goal display tweak + PDF送信エラー詳細表示
 "use client";
 
 import { useEffect, useState } from "react";
@@ -95,26 +95,33 @@ export default function CheckoutSuccessClient() {
         <p className="text-gray-500">週間プランが見つかりませんでした。</p>
       )}
 
-      {/* ✅ メール送信ボタン（仮実装） */}
+      {/* ✅ メール送信ボタン（エラー詳細表示付き） */}
       <div className="mt-6">
-   <button
-  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-  onClick={async () => {
-    const res = await fetch("/api/pdf-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result),
-    });
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          onClick={async () => {
+            try {
+              const res = await fetch("/api/pdf-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(result),
+              });
 
-    if (res.ok) {
-      alert("PDFをメール送信しました！");
-    } else {
-      alert("送信に失敗しました");
-    }
-  }}
->
-  PDFをメール送信する
-</button>
+              const json = await res.json();
+
+              if (!res.ok || !json.ok) {
+                throw new Error(json.error || "PDF送信に失敗しました");
+              }
+
+              alert("PDFをメール送信しました！");
+            } catch (e) {
+              console.error("❌ PDF送信エラー:", e);
+              alert("送信に失敗しました: " + e.message);
+            }
+          }}
+        >
+          PDFをメール送信する
+        </button>
       </div>
     </div>
   );
