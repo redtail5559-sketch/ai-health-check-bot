@@ -1,4 +1,4 @@
-// PDFメール最新版（NullError対策 + エラー詳細返却 + JSON補強）
+// PDFメール最新版（JSON補強 + Resend送信失敗時の明示 + 全レスポンス保証）
 
 export const runtime = "nodejs";
 
@@ -22,9 +22,9 @@ export async function POST(req) {
     );
   }
 
-  try {
-    const { email, bmi, overview, goals, weekPlan } = payload;
+  const { email, bmi, overview, goals, weekPlan } = payload;
 
+  try {
     const doc = new PDFDocument();
     const buffers = [];
 
@@ -60,24 +60,33 @@ export async function POST(req) {
 
     const pdfData = await pdfBufferPromise;
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev", // ← 一時的にこれに変更
-      to: email,
-      subject: "AI診断レポート",
-      text: "診断結果PDFを添付します。",
-      attachments: [
-        {
-          filename: "diagnosis.pdf",
-          content: pdfData.toString("base64"),
-        },
-      ],
-    });
+    // ✅ Resend送信処理
+    try {
+      await resend.emails.send({
+        from: "onboarding@resend.dev", // ← 一時的にこれに変更
+        to: email,
+        subject: "AI診断レポート",
+        text: "診断結果PDFを添付します。",
+        attachments: [
+          {
+            filename: "diagnosis.pdf",
+            content: pdfData.toString("base64"),
+          },
+        ],
+      });
+    } catch (sendError) {
+      console.error("❌ Resend送信エラー:", sendError);
+      return NextResponse.json(
+        { ok: false, error: sendError?.message ?? "PDF送信に失敗しました（Resendエラー）" },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("❌ PDF送信エラー:", error);
+    console.error("❌ PDF生成エラー:", error);
     return NextResponse.json(
-      { ok: false, error: error?.message ?? "PDF送信中に不明なエラーが発生しました" },
+      { ok: false, error: error?.message ?? "PDF生成中に不明なエラーが発生しました" },
       { status: 500 }
     );
   }
