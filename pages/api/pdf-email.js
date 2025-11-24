@@ -2,7 +2,7 @@
 
 export const runtime = "nodejs";
 
-import Resend from "resend";
+import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 
