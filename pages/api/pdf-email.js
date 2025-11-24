@@ -1,5 +1,3 @@
-// PDFメール最新版（Pages Router対応 + 日本語フォント対応 + 送信元修正 + 全レスポンス保証）
-
 export const runtime = "nodejs";
 
 import { Resend } from "resend";
@@ -16,7 +14,6 @@ export default async function handler(req, res) {
 
   let payload;
 
-  // ✅ JSONパース失敗時の補強
   try {
     payload = req.body;
   } catch (e) {
@@ -30,7 +27,7 @@ export default async function handler(req, res) {
   const { email, bmi, overview, goals, weekPlan } = payload;
 
   try {
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 40 });
     const buffers = [];
 
     // ✅ 日本語フォント読み込み
@@ -42,6 +39,13 @@ export default async function handler(req, res) {
       console.warn("⚠️ 日本語フォントが見つかりません。デフォルトフォントで生成します");
     }
 
+    // ✅ ロゴ画像挿入
+    const logoPath = path.resolve("public/illustrations/logo.png");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, { fit: [120, 120], align: "center" });
+      doc.moveDown();
+    }
+
     const pdfBufferPromise = new Promise((resolve) => {
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => {
@@ -50,17 +54,22 @@ export default async function handler(req, res) {
       });
     });
 
-    doc.fontSize(16).text("AI診断結果", { align: "center" });
+    // ✅ 色味追加
+    doc.fillColor("#4B0082").fontSize(18).text("AI診断結果", { align: "center" });
     doc.moveDown();
+
+    doc.fillColor("black").fontSize(12);
     doc.text(`メール: ${email ?? "未入力"}`);
     doc.text(`BMI: ${bmi ?? "未入力"}`);
     doc.text(`概要: ${overview ?? "未入力"}`);
     doc.text(`目標: ${(goals?.length ? goals.join("、") : "未設定")}`);
     doc.moveDown();
 
-    doc.text("週間プラン:");
+    doc.fillColor("#4B0082").fontSize(14).text("週間プラン:");
+    doc.moveDown();
+
     weekPlan?.forEach((day) => {
-      doc.moveDown();
+      doc.fillColor("#333").fontSize(12);
       doc.text(`${day?.day ?? "日付不明"}`);
       doc.text(`朝食: ${day?.meals?.breakfast ?? "なし"}`);
       doc.text(`昼食: ${day?.meals?.lunch ?? "なし"}`);
@@ -68,6 +77,7 @@ export default async function handler(req, res) {
       doc.text(`間食: ${day?.meals?.snack ?? "なし"}`);
       doc.text(`運動: ${day?.workout?.name ?? "未設定"}（${day?.workout?.minutes ?? 0}分）`);
       doc.text(`Tips: ${day?.workout?.tips ?? "なし"}`);
+      doc.moveDown();
     });
 
     doc.end();
@@ -76,10 +86,9 @@ export default async function handler(req, res) {
 
     console.log("✅ PDF生成完了、Resend送信開始");
 
-    // ✅ Resend送信処理（送信元修正済）
     try {
       await resend.emails.send({
-        from: "noreply@ai-digital-lab.com",
+        from: "noreply@ai-digital.lab.com",
         to: email,
         subject: "AI診断レポート",
         text: "診断結果PDFを添付します。",
