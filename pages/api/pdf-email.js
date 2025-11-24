@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     const buffers = [];
 
     // ✅ 日本語フォント読み込み
-    const fontPath = path.resolve("public/fonts/NotoSansJP-Regular.ttf");
+    const fontPath = path.join(process.cwd(), "public/fonts/NotoSansJP-Regular.ttf");
     if (fs.existsSync(fontPath)) {
       doc.registerFont("jp", fontPath);
       doc.font("jp");
@@ -39,11 +39,16 @@ export default async function handler(req, res) {
       console.warn("⚠️ 日本語フォントが見つかりません。デフォルトフォントで生成します");
     }
 
-    // ✅ ロゴ画像挿入
-    const logoPath = path.resolve("public/illustrations/logo.png");
+    // ✅ ロゴ画像挿入（fs.readFileSync + buffer渡し）
+    const logoPath = path.join(process.cwd(), "public/illustrations/logo.png");
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, { fit: [120, 120], align: "center" });
-      doc.moveDown();
+      try {
+        const logoBuffer = fs.readFileSync(logoPath);
+        doc.image(logoBuffer, { fit: [120, 120], align: "center" });
+        doc.moveDown();
+      } catch (imgError) {
+        console.warn("⚠️ ロゴ画像読み込み失敗:", imgError);
+      }
     }
 
     const pdfBufferPromise = new Promise((resolve) => {
