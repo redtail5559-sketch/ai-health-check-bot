@@ -1,25 +1,28 @@
-// PDFメール最新版（JSON補強 + Resend送信ログ追加 + 全レスポンス保証）
+// PDFメール最新版（Pages Router対応 + JSON補強 + Resend送信ログ追加 + 全レスポンス保証）
 
 export const runtime = "nodejs";
 
 import { Resend } from "resend";
-import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function POST(req) {
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method Not Allowed" });
+  }
+
   let payload;
 
   // ✅ JSONパース失敗時の補強
   try {
-    payload = await req.json();
+    payload = req.body;
   } catch (e) {
     console.error("❌ JSONパースエラー:", e);
-    return NextResponse.json(
-      { ok: false, error: "リクエストが不正です（JSONが空または壊れています）" },
-      { status: 400 }
-    );
+    return res.status(400).json({
+      ok: false,
+      error: "リクエストが不正です（JSONが空または壊れています）",
+    });
   }
 
   const { email, bmi, overview, goals, weekPlan } = payload;
@@ -65,7 +68,7 @@ export async function POST(req) {
     // ✅ Resend送信処理
     try {
       await resend.emails.send({
-        from: "onboarding@resend.dev", // ← 一時的にこれに変更
+        from: "onboarding@resend.dev",
         to: email,
         subject: "AI診断レポート",
         text: "診断結果PDFを添付します。",
@@ -80,18 +83,18 @@ export async function POST(req) {
       console.log("✅ Resend送信成功");
     } catch (sendError) {
       console.error("❌ Resend送信失敗:", sendError);
-      return NextResponse.json(
-        { ok: false, error: sendError?.message ?? "PDF送信に失敗しました（Resendエラー）" },
-        { status: 502 }
-      );
+      return res.status(502).json({
+        ok: false,
+        error: sendError?.message ?? "PDF送信に失敗しました（Resendエラー）",
+      });
     }
 
-    return NextResponse.json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("❌ PDF生成エラー:", error);
-    return NextResponse.json(
-      { ok: false, error: error?.message ?? "PDF生成中に不明なエラーが発生しました" },
-      { status: 500 }
-    );
+    return res.status(500).json({
+      ok: false,
+      error: error?.message ?? "PDF生成中に不明なエラーが発生しました",
+    });
   }
 }
