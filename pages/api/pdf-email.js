@@ -1,4 +1,4 @@
-// PDFメール最新版（JSON補強 + Resend送信失敗時の明示 + 全レスポンス保証）
+// PDFメール最新版（JSON補強 + Resend送信ログ追加 + 全レスポンス保証）
 
 export const runtime = "nodejs";
 
@@ -60,6 +60,8 @@ export async function POST(req) {
 
     const pdfData = await pdfBufferPromise;
 
+    console.log("✅ PDF生成完了、Resend送信開始");
+
     // ✅ Resend送信処理
     try {
       await resend.emails.send({
@@ -74,8 +76,10 @@ export async function POST(req) {
           },
         ],
       });
+
+      console.log("✅ Resend送信成功");
     } catch (sendError) {
-      console.error("❌ Resend送信エラー:", sendError);
+      console.error("❌ Resend送信失敗:", sendError);
       return NextResponse.json(
         { ok: false, error: sendError?.message ?? "PDF送信に失敗しました（Resendエラー）" },
         { status: 502 }
