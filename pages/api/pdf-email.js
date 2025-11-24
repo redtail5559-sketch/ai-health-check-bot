@@ -1,9 +1,11 @@
-// PDFメール最新版（Pages Router対応 + JSON補強 + Resend送信ログ追加 + 全レスポンス保証）
+// PDFメール最新版（Pages Router対応 + 日本語フォント対応 + 送信元修正 + 全レスポンス保証）
 
 export const runtime = "nodejs";
 
 import { Resend } from "resend";
 import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -30,6 +32,15 @@ export default async function handler(req, res) {
   try {
     const doc = new PDFDocument();
     const buffers = [];
+
+    // ✅ 日本語フォント読み込み
+    const fontPath = path.resolve("public/fonts/NotoSansJP-Regular.ttf");
+    if (fs.existsSync(fontPath)) {
+      doc.registerFont("jp", fontPath);
+      doc.font("jp");
+    } else {
+      console.warn("⚠️ 日本語フォントが見つかりません。デフォルトフォントで生成します");
+    }
 
     const pdfBufferPromise = new Promise((resolve) => {
       doc.on("data", buffers.push.bind(buffers));
@@ -65,10 +76,10 @@ export default async function handler(req, res) {
 
     console.log("✅ PDF生成完了、Resend送信開始");
 
-    // ✅ Resend送信処理
+    // ✅ Resend送信処理（送信元修正済）
     try {
       await resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "noreply@ai-digital-lab.com",
         to: email,
         subject: "AI診断レポート",
         text: "診断結果PDFを添付します。",
