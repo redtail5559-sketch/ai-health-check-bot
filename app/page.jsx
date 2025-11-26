@@ -192,7 +192,7 @@ export default function HomePage() {
               rel="noopener noreferrer"
               className="hover:underline"
             >
-              免責ページ
+              免責事項
             </a>
             <a
               href="https://www.ai-digital-lab.com/"
