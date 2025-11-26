@@ -1,4 +1,4 @@
-// ✅ force rebuild: goal display tweak + PDF送信エラー詳細表示
+// ✅ force rebuild: goal display tweak + PDF送信前のresultチェック + JSONパース補強
 "use client";
 
 import { useEffect, useState } from "react";
@@ -95,11 +95,19 @@ export default function CheckoutSuccessClient() {
         <p className="text-gray-500">週間プランが見つかりませんでした。</p>
       )}
 
-      {/* ✅ メール送信ボタン（エラー詳細表示付き） */}
+      {/* ✅ メール送信ボタン（resultチェック + JSON補強） */}
       <div className="mt-6">
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={!result}
+          className={`px-4 py-2 rounded text-white ${
+            result ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
+          }`}
           onClick={async () => {
+            if (!result || typeof result !== "object") {
+              alert("診断データが取得できていません。再読み込みしてください。");
+              return;
+            }
+
             try {
               const res = await fetch("/api/pdf-email", {
                 method: "POST",
@@ -107,7 +115,13 @@ export default function CheckoutSuccessClient() {
                 body: JSON.stringify(result),
               });
 
-              const json = await res.json();
+              let json;
+              try {
+                json = await res.json();
+              } catch (e) {
+                const fallbackText = await res.text();
+                throw new Error(`PDF送信APIエラー: ${fallbackText}`);
+              }
 
               if (!res.ok || !json.ok) {
                 throw new Error(json.error || "PDF送信に失敗しました");
