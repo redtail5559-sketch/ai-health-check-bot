@@ -30,6 +30,13 @@ export default async function handler(req, res) {
     const doc = new PDFDocument({ margin: 40 });
     const buffers = [];
 
+    // ✅ 背景グラデーション追加
+    const { width, height } = doc.page;
+    const gradient = doc.linearGradient(0, 0, width, height);
+    gradient.stop(0, "#ffe6f0"); // 薄いピンク
+    gradient.stop(1, "#ff99cc"); // 濃いピンク
+    doc.rect(0, 0, width, height).fill(gradient);
+
     // ✅ 日本語フォント読み込み
     const fontPath = path.join(process.cwd(), "public/fonts/NotoSansJP-Regular.ttf");
     if (fs.existsSync(fontPath)) {
@@ -59,8 +66,13 @@ export default async function handler(req, res) {
       });
     });
 
-    // ✅ 色味追加
-    doc.fillColor("#4B0082").fontSize(18).text("AI診断結果", { align: "center" });
+    // ✅ タイトル中央寄せ強化
+    doc.fillColor("#4B0082")
+      .fontSize(18)
+      .text("AI診断結果", {
+        align: "center",
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      });
     doc.moveDown();
 
     doc.fillColor("black").fontSize(12);
@@ -96,44 +108,43 @@ export default async function handler(req, res) {
         fs.writeFileSync("diagnosis-debug.pdf", pdfData);
         console.log("🧪 ローカルに diagnosis-debug.pdf を保存しました");
       }
-} catch (wErr) {
-  console.warn("⚠️ PDF保存に失敗（ローカルのみ）:", wErr);
-}
+    } catch (wErr) {
+      console.warn("⚠️ PDF保存に失敗（ローカルのみ）:", wErr);
+    }
 
     console.log("✅ PDF生成完了、Resend送信開始");
 
     try {
-   
-if (!email || typeof email !== "string" || !email.includes("@")) {
-  console.error("❌ 宛先メールアドレスが不正:", email);
-  return res.status(400).json({ ok: false, error: "宛先メールアドレスが不正です" });
-}
+      if (!email || typeof email !== "string" || !email.includes("@")) {
+        console.error("❌ 宛先メールアドレスが不正:", email);
+        return res.status(400).json({ ok: false, error: "宛先メールアドレスが不正です" });
+      }
 
-// PDFサイズログ
-console.log("🧾 PDFサイズ(bytes):", pdfData?.length ?? 0);
-      
-const response = await resend.emails.send({
-  from: "noreply@ai-digital-lab.com",
-  to: email,
-  subject: "AI診断レポート",
-  text: "診断結果をPDFで添付しました。ご確認ください。",
-  attachments: [
-    {
-      filename: "diagnosis.pdf",
-      content: pdfData.toString("base64"),
-    },
-  ],
-});
+      // PDFサイズログ
+      console.log("🧾 PDFサイズ(bytes):", pdfData?.length ?? 0);
 
-console.log("📤 Resend response:", response);
+      const response = await resend.emails.send({
+        from: "noreply@ai-digital-lab.com",
+        to: email,
+        subject: "AI診断レポート",
+        text: "診断結果をPDFで添付しました。ご確認ください。",
+        attachments: [
+          {
+            filename: "diagnosis.pdf",
+            content: pdfData.toString("base64"),
+          },
+        ],
+      });
 
-if (response?.error) {
-  console.error("❌ Resend送信失敗（SDK内のerror）:", response.error);
-  return res.status(502).json({
-    ok: false,
-    error: response.error.message ?? "Resend送信エラー",
-  });
-}
+      console.log("📤 Resend response:", response);
+
+      if (response?.error) {
+        console.error("❌ Resend送信失敗（SDK内のerror）:", response.error);
+        return res.status(502).json({
+          ok: false,
+          error: response.error.message ?? "Resend送信エラー",
+        });
+      }
 
       console.log("✅ Resend送信成功");
     } catch (sendError) {
