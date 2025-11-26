@@ -28,6 +28,13 @@ export default async function handler(req, res) {
 
   try {
     const doc = new PDFDocument({ margin: 40 });
+doc.on("pageAdded", () => {
+  const { width, height } = doc.page;
+  const gradient = doc.linearGradient(0, 0, width, height);
+  gradient.stop(0, "#ffe6f0");
+  gradient.stop(1, "#ff99cc");
+  doc.rect(0, 0, width, height).fill(gradient);
+});
     const buffers = [];
 
     // ✅ 背景グラデーション追加
