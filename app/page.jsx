@@ -170,9 +170,30 @@ export default function HomePage() {
             ※本サービスは一般的な健康アドバイスの提供であり、医療行為ではありません。
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
-            <Link href="/terms" className="hover:underline">利用規約</Link>
-            <Link href="/privacy" className="hover:underline">プライバシーポリシー</Link>
-            <Link href="/disclaimer" className="hover:underline">免責ページ</Link>
+            <a
+              href="https://www.ai-digital-lab.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              利用規約
+            </a>
+            <a
+              href="https://www.ai-digital-lab.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              プライバシーポリシー
+            </a>
+            <a
+              href="https://www.ai-digital-lab.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              免責ページ
+            </a>
             <a
               href="https://www.ai-digital-lab.com/"
               target="_blank"
