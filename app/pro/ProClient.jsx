@@ -45,7 +45,7 @@ export default function ProClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          goals: form.goal ? [form.goal] : [], // ✅ 目標を配列で渡す
+          goals: form.goal ? [form.goal] : [],
         }),
       });
 
@@ -77,7 +77,7 @@ export default function ProClient() {
       <h1 className="text-2xl font-bold">AI健康診断Bot（有料版）</h1>
       <p className="mt-2 text-gray-600">決済完了後、専用レポートの生成を開始します。</p>
 
-      <form className="mt-6 space-y-4">
+      <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         {[
           ["heightCm", "身長（cm）"],
           ["weightKg", "体重（kg）"],
@@ -92,6 +92,7 @@ export default function ProClient() {
               onChange={handleChange}
               className="mt-1 block w-full border rounded px-3 py-2"
               placeholder={label}
+              required
             />
           </div>
         ))}
@@ -111,6 +112,7 @@ export default function ProClient() {
               value={form[key]}
               onChange={handleChange}
               className="mt-1 block w-full border rounded px-3 py-2"
+              required
             >
               <option value="">選択してください</option>
               {options.map((opt) => (
@@ -135,6 +137,7 @@ export default function ProClient() {
             inputMode="kana"
             autoCapitalize="none"
             autoCorrect="off"
+            required
           />
         </div>
 
@@ -147,11 +150,12 @@ export default function ProClient() {
             onChange={handleChange}
             className="mt-1 block w-full border rounded px-3 py-2"
             placeholder="you@example.com"
+            required
           />
         </div>
 
         <button
-          type="button"
+          type="submit"
           onClick={startCheckout}
           disabled={loading}
           className="mt-6 inline-flex items-center rounded-lg bg-black px-5 py-3 text-white disabled:opacity-60"
