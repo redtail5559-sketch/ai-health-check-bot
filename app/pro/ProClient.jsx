@@ -34,7 +34,9 @@ export default function ProClient() {
     }
   };
 
-  const startCheckout = async () => {
+  const handleSubmit = async (event) => {
+    event.preventDefault(); // ✅ required属性のバリデーションを先に通す
+
     console.log("✅ Checkout button clicked");
 
     try {
@@ -77,7 +79,7 @@ export default function ProClient() {
       <h1 className="text-2xl font-bold">AI健康診断Bot（有料版）</h1>
       <p className="mt-2 text-gray-600">決済完了後、専用レポートの生成を開始します。</p>
 
-      <form className="mt-6 space-y-4">
+      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
         {[
           ["heightCm", "身長（cm）"],
           ["weightKg", "体重（kg）"],
@@ -156,7 +158,6 @@ export default function ProClient() {
 
         <button
           type="submit"
-          onClick={startCheckout}
           disabled={loading}
           className="mt-6 inline-flex items-center rounded-lg bg-black px-5 py-3 text-white disabled:opacity-60"
         >
