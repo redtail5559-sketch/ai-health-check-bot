@@ -1,4 +1,3 @@
-// app/api/pro-success/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -15,6 +14,17 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 
 const stripe = new Stripe(stripeSecretKey);
 const openai = new OpenAI({ apiKey: openaiApiKey });
+
+function computeBmi(heightCmStr, weightKgStr) {
+  const heightCm = parseFloat(heightCmStr);
+  const weightKg = parseFloat(weightKgStr);
+  if (!isFinite(heightCm) || !isFinite(weightKg) || heightCm <= 0 || weightKg <= 0) {
+    return null;
+  }
+  const heightM = heightCm / 100;
+  const bmiRaw = weightKg / (heightM * heightM);
+  return Math.round(bmiRaw * 100) / 100;
+}
 
 export async function GET(req) {
   const url = new URL(req.url);
@@ -43,11 +53,15 @@ export async function GET(req) {
       .map((g) => g.trim())
       .filter((g) => g.length > 0);
 
-    // ✅ AIに overview を生成させる
+    const heightCm = session.metadata?.heightCm || "";
+    const weightKg = session.metadata?.weightKg || "";
+    const bmi = computeBmi(heightCm, weightKg);
+
+    // ✅ AIに overview を生成させる（正しいBMIを埋め込む）
     const overviewPrompt = `
 あなたは健康管理AIです。以下の条件に基づいて、ユーザーの体型を簡潔に評価してください。
 
-- BMIは22.5です
+- BMIは${bmi ?? "不明"}です
 - 日本語で1文で回答してください
 `;
 
@@ -57,7 +71,8 @@ export async function GET(req) {
       temperature: 0.5,
     });
 
-    const overview = overviewRes.choices[0]?.message?.content?.trim() || "体型評価取得に失敗しました";
+    const overview =
+      overviewRes.choices[0]?.message?.content?.trim() || "体型評価取得に失敗しました";
 
     // ✅ AIに週間プランを生成させる
     const planPrompt = `
@@ -106,7 +121,7 @@ export async function GET(req) {
 
     const data = {
       email,
-      bmi: 22.5,
+      bmi: bmi ?? null,
       overview,
       goals,
       weekPlan,
