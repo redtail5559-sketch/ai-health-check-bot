@@ -1,4 +1,3 @@
-// ✅ force rebuild: goal display tweak + PDF送信前のresultチェック + JSONパース補強
 "use client";
 
 import { useEffect, useState } from "react";
@@ -50,11 +49,16 @@ export default function CheckoutSuccessClient() {
   if (error) return <div className="text-red-500">エラー: {error}</div>;
   if (!result) return <div>診断データを取得中...</div>;
 
+  const roundedBmi =
+    typeof result.bmi === "number"
+      ? Math.round(result.bmi * 100) / 100
+      : result.bmi;
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">AI診断結果</h2>
       <p><strong>メール:</strong> {result.email}</p>
-      <p><strong>BMI:</strong> {result.bmi}</p>
+      <p><strong>BMI:</strong> {roundedBmi}</p>
       <p><strong>概要:</strong> {result.overview}</p>
 
       <p><strong>目標:</strong> {Array.isArray(result.goals) && result.goals.length > 0 ? result.goals.join("、") : "未設定"}</p>
@@ -95,7 +99,6 @@ export default function CheckoutSuccessClient() {
         <p className="text-gray-500">週間プランが見つかりませんでした。</p>
       )}
 
-      {/* ✅ メール送信ボタン（resultチェック + JSON補強） */}
       <div className="mt-6">
         <button
           disabled={!result}
