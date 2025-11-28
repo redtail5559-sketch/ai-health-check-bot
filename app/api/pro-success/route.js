@@ -23,7 +23,7 @@ function computeBmi(heightCmStr, weightKgStr) {
   }
   const heightM = heightCm / 100;
   const bmiRaw = weightKg / (heightM * heightM);
-  return Math.round(bmiRaw * 100) / 100;
+  return Math.round(bmiRaw * 10) / 10; // ✅ 小数第1位に丸め
 }
 
 export async function GET(req) {
@@ -57,7 +57,6 @@ export async function GET(req) {
     const weightKg = session.metadata?.weightKg || "";
     const bmi = computeBmi(heightCm, weightKg);
 
-    // ✅ AIに overview を生成させる（正しいBMIを埋め込む）
     const overviewPrompt = `
 あなたは健康管理AIです。以下の条件に基づいて、ユーザーの体型を簡潔に評価してください。
 
@@ -74,7 +73,6 @@ export async function GET(req) {
     const overview =
       overviewRes.choices[0]?.message?.content?.trim() || "体型評価取得に失敗しました";
 
-    // ✅ AIに週間プランを生成させる
     const planPrompt = `
 あなたは健康管理AIです。以下の形式で1週間分の食事・運動プランをJSONで生成してください。
 必ず7件（「月」〜「日」）を含めてください。
