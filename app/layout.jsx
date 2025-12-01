@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/react"; // ✅ 追加
 
 export const metadata = {
   title: "AI Health Check Bot",
@@ -10,6 +11,7 @@ export default function RootLayout({ children }) {
     <html lang="ja">
       <body className="min-h-screen bg-gradient-to-br from-pink-50 via-indigo-50 to-blue-100">
         <main className="mx-auto max-w-2xl">{children}</main>
+        <Analytics /> {/* ✅ 追加：Vercel Analyticsを有効化 */}
       </body>
     </html>
   );
