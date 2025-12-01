@@ -6,6 +6,7 @@ export const metadata = {
   description: "AIを使った健康診断Bot",
 };
 
+// Vercel Analytics
 export default function RootLayout({ children }) {
   return (
     <html lang="ja">
