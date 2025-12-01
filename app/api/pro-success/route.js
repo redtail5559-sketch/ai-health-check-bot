@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import OpenAI from "openai";
 
-const isProd = process.env.NEXT_PUBLIC_ENV === "preview";
+const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 const stripeSecretKey = isProd
   ? process.env.STRIPE_SECRET_KEY
   : process.env.STRIPE_SECRET_KEY_TEST;
