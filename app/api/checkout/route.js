@@ -1,21 +1,24 @@
-// app/api/checkout/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const isProd = process.env.NEXT_PUBLIC_ENV === "productio";
+// ✅ 正しい production 判定とキーの切り替え
+const isProd = process.env.NEXT_PUBLIC_ENV === "production";
+const stripeSecretKey = isProd
+  ? process.env.STRIPE_SECRET_KEY
+  : process.env.STRIPE_SECRET_KEY_TEST;
 
-const stripe = new Stripe(
-  isProd ? process.env.STRIPE_SECRET_KEY : process.env.STRIPE_SECRET_KEY_TEST,
-  { apiVersion: "2024-06-20" }
-);
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: "2024-06-20",
+});
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    console.log("✅ 受信した goals:", body.goals); // ← ここを追加
+    console.log("✅ 受信した goals:", body.goals);
+
     const email = body.email?.trim() || "";
     const goals = Array.isArray(body.goals) ? body.goals : [];
 
@@ -52,7 +55,7 @@ export async function POST(req) {
         drink: body.drink || "",
         smoke: body.smoke || "",
         diet: body.diet || "",
-        goals: goals.join(","), // ← 複数目標をカンマ区切りで渡す
+        goals: goals.join(","),
         email: email,
       },
     });
