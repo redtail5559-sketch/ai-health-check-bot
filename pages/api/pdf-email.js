@@ -76,7 +76,7 @@ doc.on("pageAdded", () => {
     // ✅ タイトル中央寄せ強化
     doc.fillColor("#4B0082")
       .fontSize(18)
-      .text("AI診断結果", {
+      .text("AIチェック結果", {
         align: "center",
         width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
       });
@@ -112,8 +112,8 @@ doc.on("pageAdded", () => {
     try {
       const isProd = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
       if (!isProd) {
-        fs.writeFileSync("diagnosis-debug.pdf", pdfData);
-        console.log("🧪 ローカルに diagnosis-debug.pdf を保存しました");
+        fs.writeFileSync("ai-check.pdf", pdfData);
+        console.log("🧪 ローカルに ai-check.pdf を保存しました");
       }
     } catch (wErr) {
       console.warn("⚠️ PDF保存に失敗（ローカルのみ）:", wErr);
@@ -133,11 +133,11 @@ doc.on("pageAdded", () => {
       const response = await resend.emails.send({
         from: "noreply@ai-digital-lab.com",
         to: email,
-        subject: "AI診断レポート",
-        text: "診断結果をPDFで添付しました。ご確認ください。",
+        subject: "AIチェックレポート",
+        text: "チェック結果をPDFで添付しました。ご確認ください。",
         attachments: [
           {
-            filename: "diagnosis.pdf",
+            filename: "ai-check.pdf",
             content: pdfData.toString("base64"),
           },
         ],

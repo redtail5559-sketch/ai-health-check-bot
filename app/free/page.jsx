@@ -74,7 +74,7 @@ export default function Page() {
         setError(json?.errors?.join(" / ") || json?.error || "エラーが発生しました");
       } else {
         setResult(json.data);
-        console.log("診断結果:", json.data);
+        console.log("チェック結果:", json.data);
       }
     } catch (err) {
       console.error("通信エラー:", err);
@@ -86,9 +86,9 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-3xl font-bold mb-2">AI健康診断Bot（無料版）</h1>
+      <h1 className="text-3xl font-bold mb-2">AI健康チェックBot（無料版）</h1>
       <p className="mb-6 text-sm text-gray-600">
-        身長・体重などを入力すると、BMIとワンポイントアドバイスを表示します。
+        身長・体重などを入力すると、BMIとアドバイスを表示します。
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -177,7 +177,7 @@ export default function Page() {
           disabled={loading}
           className="w-full rounded bg-black text-white py-2 font-semibold disabled:opacity-60"
         >
-          {loading ? "診断中..." : "無料で今日の健康診断"}
+          {loading ? "チェック中..." : "無料で今日の健康チェック"}
         </button>
       </form>
 
@@ -186,8 +186,8 @@ export default function Page() {
       {result && (
         <div className="mt-6 space-y-2 rounded border p-4">
           <p><span className="font-semibold">BMI：</span>{result.bmi}</p>
-          <p><span className="font-semibold">判定：</span>{result.category}</p>
-          <p><span className="font-semibold">ワンポイント：</span>{result.advice}</p>
+          <p><span className="font-semibold">チェック：</span>{result.category}</p>
+          <p><span className="font-semibold">アドバイス：</span>{result.advice}</p>
           {result.tips?.length > 0 && (
             <ul className="list-disc pl-5">
               {result.tips.map((t, i) => <li key={i}>{t}</li>)}

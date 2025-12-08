@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// ✅ 正しい production 判定とキーの切り替え
+// ✅ 正しい production チェックとキーの切り替え
 const isProd = process.env.NEXT_PUBLIC_ENV === "production";
 const stripeSecretKey = isProd
   ? process.env.STRIPE_SECRET_KEY

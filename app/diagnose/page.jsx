@@ -73,7 +73,7 @@ export default function Home() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!json?.ok) throw new Error("診断でエラーが発生しました。");
+      if (!json?.ok) throw new Error("チェックでエラーが発生しました。");
       setResult(json.data);
     } catch (err) {
       setResult({
@@ -92,10 +92,10 @@ export default function Home() {
     () => (
       <header className="mx-auto max-w-3xl px-4 pt-8 pb-3 sm:pt-10">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-          AI健康診断Bot
+          AI健康チェックBot
         </h1>
         <p className="mt-2 text-gray-600">
-          身長・体重などを入力すると、BMIとワンポイントアドバイスを表示します。
+          身長・体重などを入力すると、BMIとアドバイスを表示します。
         </p>
       </header>
     ),
@@ -192,7 +192,7 @@ export default function Home() {
             disabled={submitting}
             className="mt-6 w-full rounded-2xl bg-indigo-600 px-6 py-4 text-center text-base font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 disabled:opacity-60"
           >
-            {submitting ? "診断中…" : "無料で今日の健康診断"}
+            {submitting ? チェック中…" : "無料で今日の健康チェック"}
           </button>
 
           <p className="sr-only" aria-live="polite">

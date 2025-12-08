@@ -26,7 +26,7 @@ export default async function Page({ searchParams }) {
         plan = json.data.weekPlan;
         email = json.data.email || emailParam;
       } else {
-        error = json?.error || "診断結果の取得に失敗しました";
+        error = json?.error || "チェック結果の取得に失敗しました";
       }
     } catch (e) {
       error = String(e?.message || e);

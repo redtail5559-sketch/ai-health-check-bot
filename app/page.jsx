@@ -8,13 +8,13 @@ export default function HomePage() {
       {/* Hero セクション */}
       <section className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-8 items-center">
         <div>
-          <span className="text-pink-500 font-semibold">無料で1秒診断</span>
+          <span className="text-pink-500 font-semibold">無料で1秒チェック</span>
           <h1 className="text-4xl font-bold mt-2 leading-snug">
-            AI健康診断Bot 🎉 <br />
+            AI健康チェックBot 🎉 <br />
             <span className="text-purple-600">入力するだけで</span> 今日の健康チェック
           </h1>
           <p className="mt-4 text-gray-600">
-            身長・体重・生活習慣を入力すると、AIがBMIとワンポイントアドバイスを返送します。
+            身長・体重・生活習慣を入力すると、AIがBMIとアドバイスを返送します。
             さらに有料版では1週間の食事・運動プランをPDFでお届け。
           </p>
           <div className="mt-6 flex gap-4">
@@ -22,7 +22,7 @@ export default function HomePage() {
               href="/free"
               className="bg-pink-500 text-white px-6 py-3 rounded-lg shadow hover:bg-pink-600"
             >
-              無料で診断してみる →
+              無料でチェックしてみる →
             </Link>
             <Link
               href="#features"
@@ -67,14 +67,14 @@ export default function HomePage() {
             <div className="p-6 border rounded-lg bg-gray-50">
               <Image
                 src="/illustrations/step-ai.png"
-                alt="Step 2 AI診断"
+                alt="Step 2 AIチェック"
                 width={120}
                 height={120}
                 className="mx-auto mb-4"
               />
-              <h3 className="font-semibold">2. AIが診断🔍</h3>
+              <h3 className="font-semibold">2. AIがチェック🔍</h3>
               <p className="text-sm text-gray-600">
-                AIがBMIとワンポイントアドバイスを自動生成。
+                AIがBMIとアドバイスを自動生成。
               </p>
             </div>
             <div className="p-6 border rounded-lg bg-gray-50">
@@ -101,14 +101,14 @@ export default function HomePage() {
           <div className="p-6 border rounded-lg bg-white shadow">
             <h3 className="font-bold text-lg">無料版 ¥0</h3>
             <ul className="mt-4 text-gray-600 space-y-2">
-              <li>BMI診断</li>
-              <li>ワンポイントアドバイス</li>
+              <li>BMIチェック</li>
+              <li>アドバイス</li>
             </ul>
             <Link
               href="/free"
               className="mt-6 block bg-purple-600 text-white text-center px-6 py-3 rounded-lg hover:bg-purple-700"
             >
-              無料で診断する
+              無料でチェックする
             </Link>
           </div>
           <div className="p-6 border rounded-lg bg-white shadow">
@@ -203,7 +203,7 @@ export default function HomePage() {
               特定商取引法に基づく表記
             </a>
           </div>
-          <p className="mt-4 text-gray-400">© 2025 AI健康診断Bot</p>
+          <p className="mt-4 text-gray-400">© 2025 AI健康チェックBot</p>
         </div>
       </footer>
     </main>

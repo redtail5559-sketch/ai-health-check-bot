@@ -109,7 +109,7 @@ export async function POST(req) {
   }
 }
 
-// GETは診断用（任意）
+// GETはチェック用（任意）
 export async function GET() {
   return NextResponse.json(
     { ok: true, note: "POSTで呼んでね", ts: Date.now() },

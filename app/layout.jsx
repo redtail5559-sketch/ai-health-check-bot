@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/react"; // ✅ 追加
 
 export const metadata = {
   title: "AI Health Check Bot",
-  description: "AIを使った健康診断Bot",
+  description: "AIを使った健康チェックBot",
 };
 
 // Vercel Analytics

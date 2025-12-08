@@ -97,7 +97,7 @@ export default function ProFormClient() {
 
   return (
     <main className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">AI健康診断Bot（有料版）</h1>
+      <h1 className="text-2xl font-bold">AI健康チェックBot（有料版）</h1>
       <p className="text-gray-600 mt-2">入力→決済→結果→PDFメールまで自動でお届け。</p>
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-3">
@@ -211,7 +211,7 @@ export default function ProFormClient() {
           disabled={loading}
           className="rounded bg-black text-white px-5 py-3 disabled:opacity-60"
           >
-          {loading ? "Checkoutに遷移中…" : "診断に進む（決済へ）"}
+          {loading ? "Checkoutに遷移中…" : "チェックに進む（決済へ）"}
         </button>
       </form>
     </main>

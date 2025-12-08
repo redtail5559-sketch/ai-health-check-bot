@@ -34,20 +34,20 @@ export default function CheckoutSuccessClient() {
         console.log("✅ full result:", json);
 
         if (!json.ok) {
-          throw new Error(json.error || "診断データ取得に失敗しました");
+          throw new Error(json.error || "チェックデータ取得に失敗しました");
         }
 
         setResult(json.data);
         console.log("✅ weekPlan:", json.data.weekPlan);
       })
       .catch((e) => {
-        console.error("❌ 診断取得エラー:", e);
-        setError(`診断データの取得に失敗しました: ${e.message}`);
+        console.error("❌ チェック取得エラー:", e);
+        setError(`チェックデータの取得に失敗しました: ${e.message}`);
       });
   }, []);
 
   if (error) return <div className="text-red-500">エラー: {error}</div>;
-  if (!result) return <div>診断データを取得中...</div>;
+  if (!result) return <div>チェックデータを取得中...</div>;
 
   const roundedBmi =
     typeof result.bmi === "number"
@@ -56,7 +56,7 @@ export default function CheckoutSuccessClient() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">AI診断結果</h2>
+      <h2 className="text-xl font-bold">AIチェック結果</h2>
       <p><strong>メール:</strong> {result.email}</p>
       <p><strong>BMI:</strong> {roundedBmi}</p>
       <p><strong>概要:</strong> {result.overview}</p>
@@ -107,7 +107,7 @@ export default function CheckoutSuccessClient() {
           }`}
           onClick={async () => {
             if (!result || typeof result !== "object") {
-              alert("診断データが取得できていません。再読み込みしてください。");
+              alert("チェックデータが取得できていません。再読み込みしてください。");
               return;
             }
 

@@ -76,7 +76,7 @@ export default function ProClient() {
 
   return (
     <main className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">AI健康診断Bot（有料版）</h1>
+      <h1 className="text-2xl font-bold">AI健康チェックBot（有料版）</h1>
       <p className="mt-2 text-gray-600">決済完了後、専用レポートの生成を開始します。</p>
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
