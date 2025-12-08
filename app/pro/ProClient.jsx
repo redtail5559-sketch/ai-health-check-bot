@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 export default function ProClient() {
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState(null); // ✅ 通知用ステート追加
+  const [notice, setNotice] = useState(null);
 
   const [form, setForm] = useState({
     heightCm: "",
@@ -37,7 +37,6 @@ export default function ProClient() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     console.log("✅ Checkout button clicked");
 
     try {
@@ -67,11 +66,9 @@ export default function ProClient() {
         throw new Error("決済URLが取得できませんでした");
       }
 
-      // ✅ StripeのCheckoutへ遷移
       window.location.href = data.checkouturl;
     } catch (e) {
       console.error("❌ 決済エラー:", e);
-      // ✅ alertを廃止してページ内通知に変更
       setNotice("決済画面を開けませんでした。ご利用の環境やネットワークをご確認ください。\n詳細: " + e.message);
     } finally {
       setLoading(false);
@@ -83,7 +80,6 @@ export default function ProClient() {
       <h1 className="text-2xl font-bold">AI健康チェックBot（有料版）</h1>
       <p className="mt-2 text-gray-600">決済完了後、専用レポートの生成を開始します。</p>
 
-      {/* ✅ 通知表示（alertの代替） */}
       {notice && (
         <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-700">
           {notice}
@@ -91,12 +87,15 @@ export default function ProClient() {
       )}
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        {/* 入力フォーム部分はそのまま */}
-        {[["heightCm", "身長（cm）"], ["weightKg", "体重（kg）"], ["age", "年齢"]].map(([key, label]) => (
+        {[
+          ["heightCm", "身長（cm）"],
+          ["weightKg", "体重（kg）"],
+          ["age", "年齢"],
+        ].map(([key, label]) => (
           <div key={key}>
             <label className="block text-sm font-medium">{label}</label>
             <input
-              type="text"
+              type="number"
               name={key}
               value={form[key]}
               onChange={handleChange}
@@ -107,8 +106,70 @@ export default function ProClient() {
           </div>
         ))}
 
-        {/* 省略: sex, activity, sleep, drink, smoke, diet の select 部分 */}
-        {/* goal, email, button 部分もそのまま */}
+        {[
+          ["sex", "性別", ["男性", "女性", "その他"]],
+          ["activity", "運動習慣", ["なし", "週1〜2回", "週3回以上"]],
+          ["sleep", "睡眠時間", ["5時間未満", "5〜7時間", "7時間以上"]],
+          ["drink", "飲酒習慣", ["なし", "週1〜2回", "ほぼ毎日"]],
+          ["smoke", "喫煙習慣", ["なし", "時々", "毎日"]],
+          ["diet", "食生活", ["偏りあり", "普通", "バランス良好"]],
+        ].map(([key, label, options]) => (
+          <div key={key}>
+            <label className="block text-sm font-medium">{label}</label>
+            <select
+              name={key}
+              value={form[key]}
+              onChange={handleChange}
+              className="mt-1 block w-full border rounded px-3 py-2"
+              required
+            >
+              <option value="">選択してください</option>
+              {options.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+
+        <div>
+          <label className="block text-sm font-medium">目標（日本語で）</label>
+          <input
+            type="text"
+            name="goal"
+            value={form.goal}
+            onChange={handleChange}
+            className="mt-1 block w-full border rounded px-3 py-2"
+            placeholder="例：健康的な生活を送りたい"
+            lang="ja"
+            inputMode="kana"
+            autoCapitalize="none"
+            autoCorrect="off"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">メールアドレス</label>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            className="mt-1 block w-full border rounded px-3 py-2"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-6 inline-flex items-center rounded-lg bg-black px-5 py-3 text-white disabled:opacity-60"
+        >
+          {loading ? "決済画面へ移動中…" : "有料ボットを購入（Checkoutへ）"}
+        </button>
       </form>
     </main>
   );
