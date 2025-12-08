@@ -186,8 +186,8 @@ export default function Page() {
       {result && (
         <div className="mt-6 space-y-2 rounded border p-4">
           <p><span className="font-semibold">BMI：</span>{result.bmi}</p>
-          <p><span className="font-semibold">チェック：</span>{result.category}</p>
-          <p><span className="font-semibold">アドバイス：</span>{result.advice}</p>
+          <p><span className="font-semibold">チェック結果：</span>{result.category}</p>
+          <p><span className="font-semibold">フィードバック：</span>{result.advice}</p>
           {result.tips?.length > 0 && (
             <ul className="list-disc pl-5">
               {result.tips.map((t, i) => <li key={i}>{t}</li>)}

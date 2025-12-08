@@ -192,7 +192,7 @@ export default function Home() {
             disabled={submitting}
             className="mt-6 w-full rounded-2xl bg-indigo-600 px-6 py-4 text-center text-base font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 disabled:opacity-60"
           >
-            {submitting ? チェック中…" : "無料で今日の健康チェック"}
+            {submitting ? "チェック中…" : "無料で今日の健康チェック"}
           </button>
 
           <p className="sr-only" aria-live="polite">
