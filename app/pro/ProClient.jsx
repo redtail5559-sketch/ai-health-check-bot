@@ -62,13 +62,13 @@ export default function ProClient() {
       console.log("✅ Stripe response:", data);
 
       if (!data.checkouturl) {
-        throw new Error("checkout URL not returned");
+        throw new Error("決済URLが取得できませんでした");
       }
 
       window.location.href = data.checkouturl;
     } catch (e) {
       console.error("❌ 決済エラー:", e);
-      alert(`決済画面を開けませんでした。詳細: ${e.message}`);
+      alert("決済画面を開けませんでした。ご利用の環境やネットワークをご確認ください。\n\n詳細: " + e.message);
     } finally {
       setLoading(false);
     }
