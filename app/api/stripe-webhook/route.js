@@ -1,22 +1,28 @@
 // app/api/stripe-webhook/route.js
-export const runtime = "nodejs";           // ★Stripe検証は raw body 必須 → nodejs ランタイム
+export const runtime = "nodejs";           // Stripe検証は raw body 必須 → nodejs ランタイム
 export const dynamic = "force-dynamic";    // キャッシュ無効化
 
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+// Stripeクライアント初期化
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20", // ここはあなたのStripeダッシュボードのバージョンでOK
+  apiVersion: "2024-06-20", // StripeダッシュボードのAPIバージョンに合わせてください
 });
 
+// 環境に応じて Webhook Secret を切り替え
+// NODE_ENV が "production" のときは本番用、それ以外はテスト用を利用
+const webhookSecret =
+  process.env.NODE_ENV === "production"
+    ? process.env.STRIPE_WEBHOOK_SECRET
+    : process.env.STRIPE_WEBHOOK_SECRET_TEST;
+
 export async function POST(req) {
-  // 署名ヘッダーを取得
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
   }
 
-  // raw body を文字列として取得 → Buffer化して検証
   const rawBody = await req.text();
 
   let event;
@@ -24,7 +30,7 @@ export async function POST(req) {
     event = stripe.webhooks.constructEvent(
       Buffer.from(rawBody, "utf8"),
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET // ★Vercel環境変数に設定
+      webhookSecret
     );
   } catch (err) {
     console.error("[WEBHOOK] Signature verification failed:", err?.message);
@@ -32,41 +38,56 @@ export async function POST(req) {
   }
 
   try {
-    // 必要なイベントだけをハンドリング
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        // 例) 商品明細が必要なら以下で取得可能
-        // const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
+        // --- 本番用処理例 ---
+        // 1. DBに注文情報を保存
+        await saveOrderToDatabase(session);
 
-        // ここであなたの処理（DB書き込み / PDF生成キュー投入 / Resendでメール送信 など）
-        // 例: console.log("paid session:", session.id, session.customer_details?.email);
+        // 2. PDF生成処理をキューに投入
+        await enqueuePdfGeneration(session);
 
+        // 3. メール送信処理
+        await sendConfirmationEmail(session.customer_details?.email);
+
+        console.log("[WEBHOOK] Checkout completed:", session.id, session.customer_details?.email);
         break;
       }
 
       case "invoice.paid": {
-        // 定期課金などを使う場合
+        // 定期課金処理など
+        console.log("[WEBHOOK] Invoice paid");
         break;
       }
 
       case "invoice.payment_failed": {
-        // 失敗アクション（通知など）
+        // 支払い失敗時の処理
+        console.log("[WEBHOOK] Invoice payment failed");
         break;
       }
 
       default: {
-        // 未ハンドルはログだけ
         console.log(`[WEBHOOK] Unhandled event: ${event.type}`);
       }
     }
 
-    // Stripeへ 2xx を返せばOK（ボディは任意）
+    // Stripeへ 2xx を返せばOK
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     console.error("[WEBHOOK] Handler error:", err);
-    // ここで 500 を返すと Stripe は後で自動リトライしてくれます
     return NextResponse.json({ error: "Handler error" }, { status: 500 });
   }
+}
+
+// 他のメソッドは拒否（405エラー回避）
+export function GET() {
+  return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
+}
+export function PUT() {
+  return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
+}
+export function DELETE() {
+  return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
 }
