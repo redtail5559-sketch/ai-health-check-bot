@@ -1,4 +1,5 @@
 // preview test diff
+// preview test test
 // app/api/stripe-webhook/route.js
 export const runtime = "nodejs";           // Stripe検証は raw body 必須 → nodejs ランタイム
 export const dynamic = "force-dynamic";    // キャッシュ無効化
