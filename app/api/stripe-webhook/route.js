@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";    // キャッシュ無効化
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+const saveOrderToDatabase = () => {};
+const enqueuePdfGeneration = () => {};
+const sendConfirmationEmail = () => {};
+
 // Stripeクライアント初期化
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20", // StripeダッシュボードのAPIバージョンに合わせてください
